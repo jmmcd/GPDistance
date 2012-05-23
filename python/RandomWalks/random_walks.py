@@ -7,9 +7,9 @@ the space.
 
 """
 
-import numpy
+import numpy as np
 import random
-from numpy import zeros, dot, array, genfromtxt, savetxt, matrix
+import sys
 
 # this import is from
 # http://www.pysal.org/library/spatial_dynamics/ergodic.html: it
@@ -37,10 +37,10 @@ def make_random_matrix(n):
     only.
 
     """
-    tm = zeros((n, n))
+    tm = np.zeros((n, n))
     for i in range(n):
         # generate a random vector of out-probabilities
-        vec = zeros((n, 1))
+        vec = np.zeros((n, 1))
         for j in range(n):
             vec[j] = random.random()
         # normalize
@@ -64,7 +64,7 @@ def read_transition_matrix(filename):
     will have been written in the right format by some Java code.
 
     """
-    d = genfromtxt(filename)
+    d = np.genfromtxt(filename)
     # check that each row sums to 1, since each row is the
     # out-probabilities from a single individual. Allow a small margin
     # of error.
@@ -81,7 +81,7 @@ def run_simulation(tm, src, dest, conf, max_iters):
 
     """
     n = len(tm)
-    initial = zeros((1, n))
+    initial = np.zeros((1, n))
     initial[0, src] = 1.0
 
     iters = 0
@@ -107,7 +107,7 @@ def run_many_simulations(filename, conf):
     tm = read_transition_matrix(filename)
     n = len(tm)
     max_iters = 5 * n
-    retval = zeros((n, n))
+    retval = np.zeros((n, n))
     for dest in range(n):
         tm = read_transition_matrix(filename)
         tm = make_absorbing(tm, dest)
@@ -115,7 +115,7 @@ def run_many_simulations(filename, conf):
             print("n = {0}, src = {1}, dest = {2}".format(n, src, dest))
             iters = run_simulation(tm, src, dest, conf, max_iters)
             retval[src, dest] = iters
-    savetxt("depth_2_rw_conf_0.5.dat", retval)
+    np.savetxt("depth_2_rw_conf_0.5.dat", retval)
     
 
 def run_test():
@@ -144,13 +144,13 @@ def run_test():
     run(tm, src, dest, conf, max_iters)
 
 def get_fmpt(x):
-    x = matrix(x) # NB! has to be a true matrix or it breaks somehow...
+    x = np.matrix(x) # NB! has to be a true matrix or it breaks somehow...
     return ergodic.fmpt(x)
     
 def read_and_get_fmpt(infilename, outfilename):
     x = read_transition_matrix(infilename)
     f = get_fmpt(x)
-    savetxt(outfilename, f)
+    np.savetxt(outfilename, f)
 
 def generate_random_tm(n):
     d = np.zeros((n, n), dtype=float)
@@ -180,8 +180,12 @@ def invert_probabilities(adj):
 
 def deinvert_probabilities(adj):
     return np.exp(-adj)
+
+def test_floyd_warshall_random_data(n):
+    adj = generate_random_tm(n)
+    return floyd_warshall(adj)
     
-def floyd_warshall(n):
+def floyd_warshall(adj):
     """Finds the shortest path between all pairs of nodes. For this to
     be useful, need to invert the transition matrix probabilities p
     somehow, eg using -log(p), so that low probabilities cause high
@@ -190,27 +194,28 @@ def floyd_warshall(n):
     starts paging out (at least 10 minutes).
 
     """
-    adj = generate_random_tm(n)
     adj = invert_probabilities(adj)
     # from
     # http://www.depthfirstsearch.net/blog/2009/12/03/computing-all-shortest-paths-in-python/
+    n = len(adj)
     for k in range(n):
         adj = np.minimum(adj,
                          np.tile(adj[:, k].reshape(-1, 1), (1, n)) +
                          np.tile(adj[k, :], (n, 1)))
     adj = deinvert_probabilities(adj)
     return adj
+
+
+def read_and_get_fmpt_hpp(codename):
+    d = read_transition_matrix(codename + "1STP.dat")
+    f = get_fmpt(d)
+    outfilename = codename + "FMPT.dat"
+    np.savetxt(outfilename, f)
+
+    h = floyd_warshall(d)
+    outfilename = codename + "HPP.dat"
+    np.savetxt(outfilename, h)
     
 if __name__ == "__main__":
-    n = 4000
-
-    # run_test()
-    # run_many_simulations("depth_2_tm.dat", 0.5)
-    # read_and_get_fmpt("depth_2_tm_hc_normalised.dat", "depth_2_fmpt_hc.dat")
-    
-    d = floyd_warshall(n)
-    print(d)
-    print("")
-    print(d)
-
-
+    codename = sys.argv[1]
+    read_and_get_fmpt_hpp(codename)
