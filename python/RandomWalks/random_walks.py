@@ -18,6 +18,20 @@ from numpy import zeros, dot, array, genfromtxt, savetxt, matrix
 # Snell (Prentice-Hall, 1975).
 import ergodic 
 
+## normalise an array row-by-row, ie make each row sum to 1. This
+## might be needed for matrices created using a hill-climbing
+## adjustment to transition probabilies: in such cases, the transition
+## probabilities are adjusted to take account of fitness, so "bad"
+## transitions (to worse fitness) are made less likely to be accepted,
+## meaning that each row no longer sums to 1. By renormalising we get
+## the true probability after (if necessary) multiple rounds of
+## rejection and finally one acceptance.
+def normalise(d):
+    for i in range(len(d)):
+        sumval = np.sum(d[i])
+        d[i] *= 1.0 / sumval
+    return d
+
 def make_random_matrix(n):
     """Make a random transition matrix on n points. For testing
     only.
