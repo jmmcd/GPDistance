@@ -2,6 +2,10 @@ all:
 	cd java && make
 	cd python && make
 
-completeMatrices:
-	cd java && make completeMatrices
-	cd python && make completeMatrices
+completeMatricesDepth1:
+	cd java && make completeMatricesDepth1
+	cd python && make completeMatricesDepth1
+
+completeMatricesDepth2:
+	cd java && make completeMatricesDepth2
+	cd python && make completeMatricesDepth2

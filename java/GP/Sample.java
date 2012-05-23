@@ -269,36 +269,16 @@ public class Sample {
         return retval;
     }
         
-
-    
-
-    // This is an ugly main method.
     public static void main(String args[]) {
 
-        if (args.length == 0) {
-            // do nothing
-            
-        } else if (args.length == 1) {
-
-            if (args[0].equals("metro")) {
-                int maxDepth = 6;
-                Sample sample = new Sample(maxDepth);
-                // TODO
-                
-            } else if (args[0].equals("completeMatrices")) {
-                // write out the matrices of distances for the entire
-                // space of given depth
-                int maxDepth = 1;
-                Sample sample = new Sample(maxDepth);
-                sample.writeMatrices(sample.sampleComplete(), "depth_1");
-
-            } else if (args[0].equals("randomWalking")) {
-                // perform many random walks
-                int maxDepth = 2;
-                Sample sample = new Sample(maxDepth);
-                sample.randomWalking(false);
-                
-            }
+        if (args.length == 2 && args[0].equals("completeMatrices")) {
+            int maxDepth = new Integer(args[1]);
+            // write out the matrices of distances for the entire
+            // space of given depth
+            Sample sample = new Sample(maxDepth);
+            sample.writeMatrices(sample.sampleComplete(), "depth_" + maxDepth);
+        } else {
+            System.out.println("Please read the source to see usage.");
         }
     }
 }
