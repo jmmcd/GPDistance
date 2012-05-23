@@ -48,8 +48,11 @@ public class Sample {
         try {
             // Open files
             for (String distance: distanceNames) {
-                files.put(distance,
-                          new FileWriter("results/" + codename + "_" + distance + ".dat")); 
+                // write to ../results/<codename>/<distance>.dat
+                String dirname = "../results/" + codename + "/";
+                (new File(dirname)).mkdirs();
+                String filename = dirname + distance + ".dat";
+                files.put(distance, new FileWriter(filename)); 
             }
 
             // for every source tree
@@ -139,7 +142,8 @@ public class Sample {
     // This does Metropolis-Hastings sampling as adapted for GP by
     // Vanneschi (see Vanneschi PhD thesis available online, p 130).
     // We run M-H multiple times, starting from the same "centre"
-    // node, then return a list of all individuals encountered.
+    // node, then return a list of all individuals encountered. FIXME
+    // this needs testing in the new context.
     public ArrayList<String>
         sampleMetropolisHastings
         (Tree gamma_0, int npaths, int nsteps, boolean selection) {
