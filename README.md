@@ -11,7 +11,7 @@ types of distance:
   two trees. For now the syntactic distances are *tree-edit distance*
   (TED), *tree-alignment distance* (TAD), *overlap distance* (OVD),
   *feature-vector distance* (FVD), and *normalised compression
-  distance* (NCD). GPDistance uses an implementation of the
+  distance* (NCD). GPDistance uses a Java implementation of the
   Zhang-Shasha tree-edit distance algorithm which is Copyright (C)
   2004 Stephen Wan (see
   http://web.science.mq.edu.au/~swan/howtos/treedistance/package.html).
@@ -19,14 +19,19 @@ types of distance:
 * Operator distances work by studying the transition probabilities
   between pairs of nodes via particular operators. In this way we can
   calculate the *expected length of a random walk* (ELRW) and the
-  *highest-probability path* (HPP).
+  *highest-probability path* (HPP). The ELRW is calculated with the
+  help of ergodic.py, Copyright (C) 2012 Sergio J. Rey of PySAL (see
+  http://code.google.com/p/pysal/), derived from the treatment in
+  Kemeny, John, G. and J. Laurie Snell (1976) Finite Markov
+  Chains. Springer-Verlag, Berlin.
 
 
 Build
 -----
 
 There's a Makefile. Try $ make to compile everything. It calls into
-Makefiles in sub-directories to compile them.
+Makefiles in sub-directories to compile them. The Python code requires
+NumPy.
 
 Usage
 -----
