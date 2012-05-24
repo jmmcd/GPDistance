@@ -6,6 +6,7 @@ import matplotlib.cm as cm
 import numpy as np
 from matplotlib.ticker import FuncFormatter, MaxNLocator, IndexLocator
 import scipy.stats
+import sys
 
 # MAXTICKS is 1000 in IndexLocator
 class MyLocator(mpl.ticker.IndexLocator):
@@ -46,23 +47,34 @@ def make_correlation_table(codename):
         "OVD"
     ]
     
-    gold_names = ["FMPT", "HPP", "PL"]
+    gold_names = ["FMPT", "HPP", "SPL"]
+    d = {}
+    for name in syntactic_distance_names + gold_names:
+        d[name] = np.genfromtxt(codename + "/" + name + ".dat")
 
-    ## we'll use a call like this to get correlation
-    ## scipy.stats.mstats.kendalltau(x, y)
+    for gold in gold_names:
+        print(gold)
+        for syn in syntactic_distance_names:
+            print(syn)
+            c = scipy.stats.mstats.kendalltau(d[gold], d[syn])
+            ## we'll use a call like this to get correlation
+            print(c)
     
 
 if __name__ == "__main__":
     # for fast testing of aesthetic changes
     # w = np.array([[3, 4, 5, 6], [1, 2, 3, 4], [2, 3, 4, 5], [6, 7, 8, 9]])
 
-    basename = "depth_2"
-    names = open(basename + "_trees.txt").read().strip().split("\n")
-    names = map(lambda x: x.strip(), names)
+    codename = sys.argv[1]
+    make_correlation_table(codename)
 
-    #w = np.genfromtxt(basename + "_tm.dat")
-    for suffix in ["mean", "len", "min", "max", "std"]:
-        w = np.genfromtxt("randomwalking_x{0}.dat".format(suffix))
-        assert(len(w) == len(names))
-        #make_grid(w, None, basename + "_tm.pdf")
-        make_grid(w, None, "randomwalking_x{0}.pdf".format(suffix))
+    
+    # names = open(codename + "_trees.txt").read().strip().split("\n")
+    # names = map(lambda x: x.strip(), names)
+
+    # #w = np.genfromtxt(codename + "_tm.dat")
+    # for suffix in ["mean", "len", "min", "max", "std"]:
+    #     w = np.genfromtxt("randomwalking_x{0}.dat".format(suffix))
+    #     assert(len(w) == len(names))
+    #     #make_grid(w, None, codename + "_tm.pdf")
+    #     make_grid(w, None, "randomwalking_x{0}.pdf".format(suffix))

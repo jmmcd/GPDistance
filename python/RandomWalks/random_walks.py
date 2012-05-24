@@ -232,7 +232,7 @@ def discretize_probabilities(d):
                 retval[i, j] = inf
     return retval
 
-def read_and_get_fmpt_hpp_pl(codename):
+def read_and_get_fmpt_hpp_spl(codename):
     d = read_transition_matrix(codename + "/1STP.dat")
 
     # This gets the first mean passage time, ie the expected length of
@@ -251,9 +251,9 @@ def read_and_get_fmpt_hpp_pl(codename):
     # pairs, disregarding probabilities. Only interesting if some
     # edges are absent (ie edge probability is zero0).
     p = floyd_warshall(discretize_probabilities(d))
-    outfilename = codename + "/PL.dat"
+    outfilename = codename + "/SPL.dat"
     np.savetxt(outfilename, p)
     
 if __name__ == "__main__":
     codename = sys.argv[1]
-    read_and_get_fmpt_hpp_pl(codename)
+    read_and_get_fmpt_hpp_spl(codename)

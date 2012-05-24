@@ -19,9 +19,10 @@ types of distance:
 
 * Operator distances work by studying the transition probabilities
   between pairs of nodes via particular operators. In this way we can
-  calculate the *expected length of a random walk* (ELRW) and the
-  *highest-probability path* (HPP). The ELRW is calculated with the
-  help of ergodic.py, Copyright (C) 2012 Sergio J. Rey of PySAL (see
+  calculate the *expected length of a random walk* (ELRW), the
+  *highest-probability path* (HPP), and the *shortest path length*
+  (SPL). The ELRW is calculated with the help of ergodic.py, Copyright
+  (C) 2012 Sergio J. Rey of PySAL (see
   http://code.google.com/p/pysal/), derived from the treatment in
   Kemeny, John, G. and J. Laurie Snell (1976) Finite Markov
   Chains. Springer-Verlag, Berlin.
@@ -30,9 +31,11 @@ types of distance:
 Build
 -----
 
-There's a Makefile. Try $ make to compile everything. It calls into
+There's a Makefile. Try `make` to compile everything. It calls into
 Makefiles in sub-directories to compile them. The Python code requires
-NumPy. Use easy_install numpy, I think.
+NumPy and SciPy. Use `apt` or your favourite package manager, or try
+`pip install numpy scipy`, but be warned that installing them is known
+to cause pain especially on OSX.
 
 
 Usage
@@ -40,7 +43,7 @@ Usage
 
 See the root Makefile to see some possibilities for what to run. Eg to
 write matrices with all pairwise distances for the complete space of
-depth 1, try $ make completeMatrices.
+depth 1, try `make completeMatrices1`.
 
 
 TODO
@@ -60,5 +63,5 @@ is in preparation):
 
 McDermott, O'Reilly, Vanneschi, and Veeramachaneni, "How Far Is It
 From Here to There? A Distance that is Coherent with GP Operators",
-EuroGP 2011, Springer.
+*EuroGP 2011*, Springer.
 
