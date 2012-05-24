@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
 from matplotlib.ticker import FuncFormatter, MaxNLocator, IndexLocator
+import scipy.stats
 
 # MAXTICKS is 1000 in IndexLocator
 class MyLocator(mpl.ticker.IndexLocator):
@@ -33,6 +34,23 @@ def make_grid(w, names, filename):
     
     ax.tick_params(length=0, pad=3.0)
     fig.savefig(filename)
+
+
+def make_correlation_table(codename):
+    syntactic_distance_names = [
+        "1STP", "NCD", "FVD",
+        "NodeCount", "MinDepth", "MeanDepth", "MaxDepth",
+        "Symmetry", "MeanFanout", "DiscreteMetric",
+        "TED",
+        "TAD0", "TAD1", "TAD2", "TAD3", "TAD4", "TAD5",
+        "OVD"
+    ]
+    
+    gold_names = ["FMPT", "HPP", "PL"]
+
+    ## we'll use a call like this to get correlation
+    ## scipy.stats.mstats.kendalltau(x, y)
+    
 
 if __name__ == "__main__":
     # for fast testing of aesthetic changes

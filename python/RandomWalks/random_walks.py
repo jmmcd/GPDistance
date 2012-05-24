@@ -16,7 +16,7 @@ import sys
 # implements the first-mean-passage-time algorithm, as described in
 # "Introduction to Probability Theory with Computing" by J. Laurie
 # Snell (Prentice-Hall, 1975).
-import ergodic 
+import ergodic
 
 ## normalise an array row-by-row, ie make each row sum to 1. This
 ## might be needed for matrices created using a hill-climbing
@@ -183,18 +183,32 @@ def deinvert_probabilities(adj):
 
 def test_floyd_warshall_random_data(n):
     adj = generate_random_tm(n)
-    return floyd_warshall(adj)
-    
-def floyd_warshall(adj):
-    """Finds the shortest path between all pairs of nodes. For this to
-    be useful, need to invert the transition matrix probabilities p
-    somehow, eg using -log(p), so that low probabilities cause high
-    edge costs. Can then invert the shortest path values s again using
-    e^(-s) to recover a probability. n = 1000 works fine, n = 4000
-    starts paging out (at least 10 minutes).
+    return floyd_warshall_probabilities(adj)
+
+def floyd_warshall_probabilities(adj):
+    """For this to be useful, need to invert the transition matrix
+    probabilities p somehow, eg using -log(p), so that low
+    probabilities cause high edge costs. Can then invert the shortest
+    path values s again using e^(-s) to recover a probability.
 
     """
     adj = invert_probabilities(adj)
+    adj = floyd_warshall(adj)
+    adj = deinvert_probabilities(adj)
+    return adj    
+    
+def floyd_warshall(adj):
+    """Finds the shortest path between all pairs of nodes. For this to
+    be useful, the edge weights have to have the right semantics: a
+    small transition probability implies a large edge weight
+    (cost). So if your edge weights are probabilities, use
+    floyd_warshall_probabilities() instead: it performs the
+    conversion.
+
+    Concerning matrix size: n = 1000 works fine, n = 4000 starts
+    paging out (at least 10 minutes) on my machine.
+
+    """
     # from
     # http://www.depthfirstsearch.net/blog/2009/12/03/computing-all-shortest-paths-in-python/
     n = len(adj)
@@ -202,20 +216,37 @@ def floyd_warshall(adj):
         adj = np.minimum(adj,
                          np.tile(adj[:, k].reshape(-1, 1), (1, n)) +
                          np.tile(adj[k, :], (n, 1)))
-    adj = deinvert_probabilities(adj)
     return adj
 
 
-def read_and_get_fmpt_hpp(codename):
-    d = read_transition_matrix(codename + "1STP.dat")
-    f = get_fmpt(d)
-    outfilename = codename + "FMPT.dat"
-    np.savetxt(outfilename, f)
+def discretize_probabilities(d):
+    """Set the edge cost to 1 if there is a nonzero probability, and
+    to infinity if there is a zero probability.
 
-    h = floyd_warshall(d)
-    outfilename = codename + "HPP.dat"
-    np.savetxt(outfilename, h)
+    """
+    retval = np.ones_like(d, dtype=float)
+    inf = np.infty
+    for i in range(len(d)):
+        for j in range(len(d)):
+            if not d[i, j] > 0.0:
+                retval[i, j] = inf
+    return retval
+
+def read_and_get_fmpt_hpp_pl(codename):
+    d = read_transition_matrix(codename + "/1STP.dat")
+    
+    # f = get_fmpt(d)
+    # outfilename = codename + "/FMPT.dat"
+    # np.savetxt(outfilename, f)
+
+    # h = floyd_warshall_probabilities(d)
+    # outfilename = codename + "/HPP.dat"
+    # np.savetxt(outfilename, h)
+
+    p = floyd_warshall(discretize_probabilities(d))
+    outfilename = codename + "/PL.dat"
+    np.savetxt(outfilename, p)
     
 if __name__ == "__main__":
     codename = sys.argv[1]
-    read_and_get_fmpt_hpp(codename)
+    read_and_get_fmpt_hpp_pl(codename)
