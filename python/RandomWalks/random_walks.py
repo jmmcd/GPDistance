@@ -235,13 +235,13 @@ def discretize_probabilities(d):
 def read_and_get_fmpt_hpp_pl(codename):
     d = read_transition_matrix(codename + "/1STP.dat")
     
-    # f = get_fmpt(d)
-    # outfilename = codename + "/FMPT.dat"
-    # np.savetxt(outfilename, f)
+    f = get_fmpt(d)
+    outfilename = codename + "/FMPT.dat"
+    np.savetxt(outfilename, f)
 
-    # h = floyd_warshall_probabilities(d)
-    # outfilename = codename + "/HPP.dat"
-    # np.savetxt(outfilename, h)
+    h = floyd_warshall_probabilities(d)
+    outfilename = codename + "/HPP.dat"
+    np.savetxt(outfilename, h)
 
     p = floyd_warshall(discretize_probabilities(d))
     outfilename = codename + "/PL.dat"
