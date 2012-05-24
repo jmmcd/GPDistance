@@ -234,15 +234,22 @@ def discretize_probabilities(d):
 
 def read_and_get_fmpt_hpp_pl(codename):
     d = read_transition_matrix(codename + "/1STP.dat")
-    
+
+    # This gets the first mean passage time, ie the expected length of
+    # a random walk.
     f = get_fmpt(d)
     outfilename = codename + "/FMPT.dat"
     np.savetxt(outfilename, f)
 
+    # This gets the cost of the shortest path between pairs. The cost
+    # of an edge is the negative log of its probability.
     h = floyd_warshall_probabilities(d)
     outfilename = codename + "/HPP.dat"
     np.savetxt(outfilename, h)
 
+    # this gets the minimum number of steps required to go between
+    # pairs, disregarding probabilities. Only interesting if some
+    # edges are absent (ie edge probability is zero0).
     p = floyd_warshall(discretize_probabilities(d))
     outfilename = codename + "/PL.dat"
     np.savetxt(outfilename, p)
