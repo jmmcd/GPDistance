@@ -3,7 +3,9 @@
 """This module provides functionality implementing an absorbing Markov
 chain. It can be used to calculate the expected length of a random
 walk between any two points in a space, given the transition matrix on
-the space. 
+the space. Also the lowest-cost path (treating low transition
+probabilities as high edge traversal costs) and the shortest path (in
+number of steps, disregarding probabilities).
 
 """
 
@@ -14,40 +16,36 @@ import sys
 # this import is from
 # http://www.pysal.org/library/spatial_dynamics/ergodic.html: it
 # implements the first-mean-passage-time algorithm, as described in
-# "Introduction to Probability Theory with Computing" by J. Laurie
-# Snell (Prentice-Hall, 1975).
+# Kemeny, John, G. and J. Laurie Snell (1976) Finite Markov
+# Chains. Springer-Verlag, Berlin.
 import ergodic
 
-## normalise an array row-by-row, ie make each row sum to 1. This
-## might be needed for matrices created using a hill-climbing
-## adjustment to transition probabilies: in such cases, the transition
-## probabilities are adjusted to take account of fitness, so "bad"
-## transitions (to worse fitness) are made less likely to be accepted,
-## meaning that each row no longer sums to 1. By renormalising we get
-## the true probability after (if necessary) multiple rounds of
-## rejection and finally one acceptance.
-def normalise(d):
+def normalise_by_row(d):
+    """Normalise an array row-by-row, ie make each row sum to 1. This
+    is useful when randomly-generating transition matrices, and for
+    matrices created using a hill-climbing adjustment to transition
+    probabilies: in such cases, the transition probabilities are
+    adjusted to take account of fitness, so "bad" transitions (to
+    worse fitness) are made less likely to be accepted, meaning that
+    each row no longer sums to 1. By renormalising we get the true
+    probability after (if necessary) multiple rounds of rejection and
+    finally one acceptance.
+
+    """
     for i in range(len(d)):
         sumval = np.sum(d[i])
         d[i] *= 1.0 / sumval
     return d
 
 def make_random_matrix(n):
-    """Make a random transition matrix on n points. For testing
-    only.
-
-    """
-    tm = np.zeros((n, n))
+    """Make a random transition matrix on n points."""
+    tm = np.zeros((n, n), dtype=float)
     for i in range(n):
         # generate a random vector of out-probabilities
         vec = np.zeros((n, 1))
         for j in range(n):
             vec[j] = random.random()
-        # normalize
-        vec *= 1.0 / sum(vec)
-        for j in range(n):
-            tm[i, j] = vec[j]
-    return tm
+    return normalise_by_row(tm)
 
 def make_absorbing(tm, dest):
     """Given a transition matrix, disallow transitions away from the
@@ -119,6 +117,7 @@ def run_many_simulations(filename, conf):
     
 
 def run_test():
+    """Run a simulation with test parameters."""
     # standard parameters
     conf = 0.5
 
@@ -141,55 +140,46 @@ def run_test():
 
     print("n = {0}, src = {1}, dest = {2}".format(n, src, dest))
     print(tm)
-    run(tm, src, dest, conf, max_iters)
+    run_simulation(tm, src, dest, conf, max_iters)
 
 def get_fmpt(x):
-    x = np.matrix(x) # NB! has to be a true matrix or it breaks somehow...
+    """Calculate first-mean-passage time of a given transition
+    matrix.
+
+    """
+    # NB! The ergodic code expects a matrix, but an array. Breaks
+    # otherwise.
+    x = np.matrix(x) 
     return ergodic.fmpt(x)
     
-def read_and_get_fmpt(infilename, outfilename):
-    x = read_transition_matrix(infilename)
-    f = get_fmpt(x)
-    np.savetxt(outfilename, f)
-
-def generate_random_tm(n):
-    d = np.zeros((n, n), dtype=float)
-
-    for i in range(len(d)):
-        v = np.random.random(len(d))
-        mv = np.sum(v)
-        v *= 1.0 / mv
-        d[i] = v
-    d = np.matrix(d)
-    return d
-
 def test_matrix_size(n):
     """Test how big the tm can be before get_fmpt becomes
     slow. n = 4000 is fine, n = 10000 starts paging out (at least 30
     minutes).
 
     """
-    d = generate_random_tm(n)
+    d = make_random_matrix(n)
     fmpt = get_fmpt(d)
     print("min", np.min(fmpt))
     print("max", np.max(fmpt))
 
 def invert_probabilities(adj):
-    assert(np.min(adj) > 0.0)
+    """Convert a probability into an edge traversal cost."""
     return -np.log(adj)
 
 def deinvert_probabilities(adj):
+    """Convert an edge traversal cost into a probability."""
     return np.exp(-adj)
 
 def test_floyd_warshall_random_data(n):
-    adj = generate_random_tm(n)
+    """Test."""
+    adj = make_random_matrix(n)
     return floyd_warshall_probabilities(adj)
 
 def floyd_warshall_probabilities(adj):
     """For this to be useful, need to invert the transition matrix
-    probabilities p somehow, eg using -log(p), so that low
-    probabilities cause high edge costs. Can then invert the shortest
-    path values s again using e^(-s) to recover a probability.
+    probabilities p somehow, so that low probabilities cause high edge
+    traversal costs. See invert_ and deinvert_probabilities.
 
     """
     adj = invert_probabilities(adj)
@@ -219,9 +209,18 @@ def floyd_warshall(adj):
     return adj
 
 
+def floyd_warshall_nsteps(adj):
+    """Disregard the transition probabilities, other than to see
+    whether an edge traversal is allowed or not. Calculate the number
+    of steps required to get from each point to each other.
+
+    """
+    d = discretize_probabilities(adj)
+    return floyd_warshall(d)
+    
 def discretize_probabilities(d):
     """Set the edge cost to 1 if there is a nonzero probability, and
-    to infinity if there is a zero probability.
+    to infinity if there is a zero probability. 
 
     """
     retval = np.ones_like(d, dtype=float)
@@ -249,8 +248,8 @@ def read_and_get_fmpt_hpp_spl(codename):
 
     # this gets the minimum number of steps required to go between
     # pairs, disregarding probabilities. Only interesting if some
-    # edges are absent (ie edge probability is zero0).
-    p = floyd_warshall(discretize_probabilities(d))
+    # edges are absent (ie edge probability is zero).
+    p = floyd_warshall_nsteps(d)
     outfilename = codename + "/SPL.dat"
     np.savetxt(outfilename, p)
     
