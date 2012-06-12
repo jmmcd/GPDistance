@@ -12,6 +12,7 @@ number of steps, disregarding probabilities).
 import numpy as np
 import random
 import sys
+import itertools
 
 # this import is from
 # http://www.pysal.org/library/spatial_dynamics/ergodic.html: it
@@ -144,13 +145,16 @@ def run_test():
 
 def get_fmpt(x):
     """Calculate first-mean-passage time of a given transition
-    matrix.
+    matrix. Set self-transitions to zero.
 
     """
-    # NB! The ergodic code expects a matrix, but an array. Breaks
+    # NB! The ergodic code expects a matrix, not a numpy array. Breaks
     # otherwise.
-    x = np.matrix(x) 
-    return ergodic.fmpt(x)
+    x = np.matrix(x)
+    x = np.array(ergodic.fmpt(x))
+    # cost/length of self-transition should be zero
+    x *= (np.ones_like(x) - np.eye(len(x)))
+    return x
     
 def test_matrix_size(n):
     """Test how big the tm can be before get_fmpt becomes
@@ -164,8 +168,17 @@ def test_matrix_size(n):
     print("max", np.max(fmpt))
 
 def invert_probabilities(adj):
-    """Convert a probability into an edge traversal cost."""
-    return -np.log(adj)
+    """Convert a probability into an edge traversal cost. It's ok to
+    ignore runtime floating point problems here, because they're only
+    due to zero-probabilities, which result in infinite edge-traversal
+    costs, which is what we want. Restore the "raise" behaviour
+    afterward.
+
+    """
+    np.seterr(all='warn')
+    retval = -np.log(adj)
+    np.seterr(all='raise')
+    return retval
 
 def deinvert_probabilities(adj):
     """Convert an edge traversal cost into a probability."""
@@ -182,10 +195,12 @@ def floyd_warshall_probabilities(adj):
     traversal costs. See invert_ and deinvert_probabilities.
 
     """
-    adj = invert_probabilities(adj)
-    adj = floyd_warshall(adj)
-    adj = deinvert_probabilities(adj)
-    return adj    
+    x = invert_probabilities(adj)
+    x = floyd_warshall(x)
+    # cost/length of self-transition should be zero
+    x *= (np.ones_like(x) - np.eye(len(x)))
+    # x = deinvert_probabilities(x)
+    return x
     
 def floyd_warshall(adj):
     """Finds the shortest path between all pairs of nodes. For this to
@@ -215,8 +230,11 @@ def floyd_warshall_nsteps(adj):
     of steps required to get from each point to each other.
 
     """
-    d = discretize_probabilities(adj)
-    return floyd_warshall(d)
+    x = discretize_probabilities(adj)
+    x = floyd_warshall(x)
+    # cost/length of self-transition should be zero
+    x *= (np.ones_like(x) - np.eye(len(x)))
+    return x
     
 def discretize_probabilities(d):
     """Set the edge cost to 1 if there is a nonzero probability, and
@@ -231,28 +249,66 @@ def discretize_probabilities(d):
                 retval[i, j] = inf
     return retval
 
-def read_and_get_fmpt_hpp_spl(codename):
-    d = read_transition_matrix(codename + "/1STP.dat")
+def read_and_get_dtp_fmpt_sp_steps(codename):
+    t = read_transition_matrix(codename + "/TP.dat")
 
+    # This gets D_TP, which is just the transition probability inverted
+    d = invert_probabilities(t)
+    outfilename = codename + "/D_TP.dat"
+    np.savetxt(outfilename, d)
+    
     # This gets the first mean passage time, ie the expected length of
     # a random walk.
-    f = get_fmpt(d)
+    f = get_fmpt(t)
     outfilename = codename + "/FMPT.dat"
     np.savetxt(outfilename, f)
 
     # This gets the cost of the shortest path between pairs. The cost
     # of an edge is the negative log of its probability.
-    h = floyd_warshall_probabilities(d)
-    outfilename = codename + "/HPP.dat"
+    h = floyd_warshall_probabilities(t)
+    outfilename = codename + "/SP.dat"
     np.savetxt(outfilename, h)
 
     # this gets the minimum number of steps required to go between
     # pairs, disregarding probabilities. Only interesting if some
     # edges are absent (ie edge probability is zero).
-    p = floyd_warshall_nsteps(d)
-    outfilename = codename + "/SPL.dat"
+    p = floyd_warshall_nsteps(t)
+    outfilename = codename + "/STEPS.dat"
     np.savetxt(outfilename, p)
+
+def hamming_distance(x, y):
+    return np.sum(x != y)
+    
+def generate_ga_tm(codename, pmut=None):
+    """For a bitstring (genetic algorithm) representation of a given
+    length, generate a transition matrix with the mutation probability
+    pmut. Also generate the Hamming distances. If pmut=None (default),
+    exactly one bitflip is performed per individual, rather than using
+    a per-gene mutation probability.
+
+    """
+    length = int(codename.split("_")[2])
+    tm = np.zeros((2**length, 2**length))
+    hm = np.zeros((2**length, 2**length))
+    for i, indi in enumerate(itertools.product(*[(0, 1) for x in range(length)])):
+        indi = np.array(indi, dtype='bool')
+        for j, indj in enumerate(itertools.product(*[(0, 1) for y in range(length)])):
+            indj = np.array(indj, dtype='bool')
+            h = hamming_distance(indi, indj)
+            hm[i][j] = h
+            if pmut is None:
+                if h == 1:
+                    tm[i][j] = 1.0 / length # there are length inds at hamming distance 1
+                    # else leave it at zero
+            else:
+                tm[i][j] = (pmut ** h) * ((1.0 - pmut) ** (length - h))
+    outfilename = codename + "/TP.dat"
+    np.savetxt(outfilename, tm)
+    outfilename = codename + "/Hamming.dat"
+    np.savetxt(outfilename, hm)
+
     
 if __name__ == "__main__":
     codename = sys.argv[1]
-    read_and_get_fmpt_hpp_spl(codename)
+    # generate_ga_tm(codename)
+    read_and_get_dtp_fmpt_sp_steps(codename)

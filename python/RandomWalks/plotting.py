@@ -7,6 +7,9 @@ import numpy as np
 from matplotlib.ticker import FuncFormatter, MaxNLocator, IndexLocator
 import scipy.stats
 import sys
+import os
+from math import *
+oldsettings = np.seterr(all='raise')
 
 # MAXTICKS is 1000 in IndexLocator
 class MyLocator(mpl.ticker.IndexLocator):
@@ -37,36 +40,63 @@ def make_grid(w, names, filename):
     fig.savefig(filename)
 
 
-def make_correlation_table(codename):
+def make_correlation_table(codename, txt=""):
+    # gp distances
     syntactic_distance_names = [
-        "1STP", "NCD", "FVD",
+        "NCD", "FVD",
         "NodeCount", "MinDepth", "MeanDepth", "MaxDepth",
         "Symmetry", "MeanFanout", "DiscreteMetric",
         "TED",
         "TAD0", "TAD1", "TAD2", "TAD3", "TAD4", "TAD5",
         "OVD"
     ]
-    
-    gold_names = ["FMPT", "HPP", "SPL"]
+    # ga distances
+    if "ga_length" in codename:
+        syntactic_distance_names = [
+            "Hamming"
+        ]
+
+    print(r"""\begin{table}
+\centering
+\caption{Correlations between distance measures: """ + txt)
+    print(r"""\label{tab:correlationresults_""" + os.path.basename(codename) + r"}}")
+    print(r"""\begin{tabular}{l|l|l|l|l}
+ & D$_{\mathrm{TP}}$ & FMPT & SP & STEPS \\
+\hline
+\hline""")
+
+    gold_names = ["D_TP", "FMPT", "SP", "STEPS"]
     d = {}
     for name in syntactic_distance_names + gold_names:
         d[name] = np.genfromtxt(codename + "/" + name + ".dat")
 
-    for gold in gold_names:
-        print(gold)
-        for syn in syntactic_distance_names:
-            print(syn)
-            c = scipy.stats.mstats.kendalltau(d[gold], d[syn])
-            ## we'll use a call like this to get correlation
-            print(c)
-    
+    for syn in syntactic_distance_names + gold_names:
+        line = syn.replace("_TP", r"$_{\mathrm{TP}}$")
+        for gold in gold_names:
+            try:
+                corr, p = scipy.stats.mstats.kendalltau(d[gold], d[syn])
+            except FloatingPointError:
+                corr, p = 0.0, 1.0
+            # corr = abs(corr)
+            if p < 0.05:
+                sig = "*"
+            else:
+                sig = " "
+            line += r" & {0:1.2f} \hfill {1} ".format(corr, sig)
+        line += r"\\"
+        print(line)
+    print(r"""\noalign{\smallskip}\hline
+\end{tabular}
+\end{table}""")
+
 
 if __name__ == "__main__":
     # for fast testing of aesthetic changes
     # w = np.array([[3, 4, 5, 6], [1, 2, 3, 4], [2, 3, 4, 5], [6, 7, 8, 9]])
 
     codename = sys.argv[1]
-    make_correlation_table(codename)
+    txt = sys.argv[2]
+    make_correlation_table(codename, txt)
 
     
     # names = open(codename + "_trees.txt").read().strip().split("\n")
