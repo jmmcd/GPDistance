@@ -143,6 +143,18 @@ def run_test():
     print(tm)
     run_simulation(tm, src, dest, conf, max_iters)
 
+def set_self_transition_zero(x):
+    """Set cost/length of self-transition to zero."""
+    # Was using this method:
+    #
+    # x *= (np.ones_like(x) - np.eye(len(x)))
+    #
+    # ... but it fails if infinities are involved. The following
+    # method works ok.
+    for i in range(len(x)):
+        x[i][i] = 0.0
+        
+
 def get_fmpt(x):
     """Calculate first-mean-passage time of a given transition
     matrix. Set self-transitions to zero.
@@ -152,8 +164,7 @@ def get_fmpt(x):
     # otherwise.
     x = np.matrix(x)
     x = np.array(ergodic.fmpt(x))
-    # cost/length of self-transition should be zero
-    x *= (np.ones_like(x) - np.eye(len(x)))
+    set_self_transition_zero(x)
     return x
     
 def test_matrix_size(n):
@@ -197,9 +208,7 @@ def floyd_warshall_probabilities(adj):
     """
     x = invert_probabilities(adj)
     x = floyd_warshall(x)
-    # cost/length of self-transition should be zero
-    x *= (np.ones_like(x) - np.eye(len(x)))
-    # x = deinvert_probabilities(x)
+    set_self_transition_zero(x)
     return x
     
 def floyd_warshall(adj):
@@ -232,8 +241,7 @@ def floyd_warshall_nsteps(adj):
     """
     x = discretize_probabilities(adj)
     x = floyd_warshall(x)
-    # cost/length of self-transition should be zero
-    x *= (np.ones_like(x) - np.eye(len(x)))
+    set_self_transition_zero(x)
     return x
     
 def discretize_probabilities(d):
@@ -249,11 +257,16 @@ def discretize_probabilities(d):
                 retval[i, j] = inf
     return retval
 
+def get_dtp(t):
+    x = invert_probabilities(t)
+    set_self_transition_zero(x)
+    return x
+    
 def read_and_get_dtp_fmpt_sp_steps(codename):
     t = read_transition_matrix(codename + "/TP.dat")
 
     # This gets D_TP, which is just the transition probability inverted
-    d = invert_probabilities(t)
+    d = get_dtp(t)
     outfilename = codename + "/D_TP.dat"
     np.savetxt(outfilename, d)
     
