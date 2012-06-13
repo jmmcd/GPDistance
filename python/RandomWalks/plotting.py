@@ -9,7 +9,7 @@ import scipy.stats
 import sys
 import os
 from math import *
-oldsettings = np.seterr(all='raise')
+np.seterr(all='raise')
 
 # MAXTICKS is 1000 in IndexLocator
 class MyLocator(mpl.ticker.IndexLocator):

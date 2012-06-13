@@ -40,12 +40,7 @@ def normalise_by_row(d):
 
 def make_random_matrix(n):
     """Make a random transition matrix on n points."""
-    tm = np.zeros((n, n), dtype=float)
-    for i in range(n):
-        # generate a random vector of out-probabilities
-        vec = np.zeros((n, 1))
-        for j in range(n):
-            vec[j] = random.random()
+    tm = np.random.random((n, n))
     return normalise_by_row(tm)
 
 def make_absorbing(tm, dest):
