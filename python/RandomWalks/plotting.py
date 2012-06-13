@@ -70,7 +70,7 @@ def make_correlation_table(codename, txt=""):
     for name in syntactic_distance_names + gold_names:
         d[name] = np.genfromtxt(codename + "/" + name + ".dat")
 
-    for syn in syntactic_distance_names + gold_names:
+    def do_line(syn):
         line = syn.replace("_TP", r"$_{\mathrm{TP}}$")
         for gold in gold_names:
             try:
@@ -85,8 +85,15 @@ def make_correlation_table(codename, txt=""):
             line += r" & {0:1.2f} \hfill {1} ".format(corr, sig)
         line += r"\\"
         print(line)
-    print(r"""\noalign{\smallskip}\hline
-\end{tabular}
+        
+    for syn in syntactic_distance_names:
+        do_line(syn)
+    print(r"""\hline
+ \hline""")
+    for gold in gold_names:
+        do_line(gold)
+
+    print(r"""\end{tabular}
 \end{table}""")
 
 
