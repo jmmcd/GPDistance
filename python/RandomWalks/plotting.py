@@ -5,11 +5,9 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
 from matplotlib.ticker import FuncFormatter, MaxNLocator, IndexLocator
-import scipy.stats
 import sys
 import os
 from math import *
-np.seterr(all='raise')
 
 # MAXTICKS is 1000 in IndexLocator
 class MyLocator(mpl.ticker.IndexLocator):
@@ -39,6 +37,29 @@ def make_grid(w, names, filename):
     ax.tick_params(length=0, pad=3.0)
     fig.savefig(filename)
 
+def get_kendall_tau(x, y):
+    """Return Kendall's tau, a non-parametric test of association. If
+     one of the variables is constant, a FloatingPointError will
+     happen and we can just say that there was no association. Note
+     this runs Kendall's tau-b, accounting for ties and suitable for
+     square tables:
+     [http://en.wikipedia.org/wiki/Kendall_tau_rank_correlation_coefficient#Tau-b]
+     [http://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.kendalltau.html]
+
+    """
+
+    if "scipy" not in locals():
+        import scipy.stats
+    # make sure we raise any error (so we can catch it), don't just
+    # splat it on the terminal
+    old = np.seterr(all='raise')
+    try:
+        corr, p = scipy.stats.mstats.kendalltau(x, y)
+    except FloatingPointError:
+        corr, p = 0.0, 1.0
+    # restore old error settings
+    np.seterr(**old)
+    return corr, p
 
 def make_correlation_table(codename, txt=""):
     # gp distances
@@ -73,11 +94,7 @@ def make_correlation_table(codename, txt=""):
     def do_line(syn):
         line = syn.replace("_TP", r"$_{\mathrm{TP}}$")
         for gold in gold_names:
-            try:
-                corr, p = scipy.stats.mstats.kendalltau(d[gold], d[syn])
-            except FloatingPointError:
-                corr, p = 0.0, 1.0
-            # corr = abs(corr)
+            corr, p = get_kendall_tau(d[gold], d[syn])
             if p < 0.05:
                 sig = "*"
             else:
@@ -104,7 +121,7 @@ if __name__ == "__main__":
     codename = sys.argv[1]
     txt = sys.argv[2]
     make_correlation_table(codename, txt)
-
+    
     
     # names = open(codename + "_trees.txt").read().strip().split("\n")
     # names = map(lambda x: x.strip(), names)
