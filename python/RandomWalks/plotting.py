@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
+# 2.7 because scipy doesn't import on other versions, on my imac
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -8,10 +9,36 @@ from matplotlib.ticker import FuncFormatter, MaxNLocator, IndexLocator
 import sys
 import os
 from math import *
+import random
 
 # MAXTICKS is 1000 in IndexLocator
 class MyLocator(mpl.ticker.IndexLocator):
     MAXTICKS=1500
+
+def make_grid_plots(codename):
+    names = open(codename + "/all_trees.dat").read().strip().split("\n")
+    names = map(lambda x: x.strip(), names)
+    
+    # gp distances
+    syntactic_distance_names = [
+        "NCD", "FVD",
+        "NodeCount", "MinDepth", "MeanDepth", "MaxDepth",
+        "Symmetry", "MeanFanout", "DiscreteMetric",
+        "TED",
+        "TAD0", "TAD1", "TAD2", "TAD3", "TAD4", "TAD5",
+        "OVD"
+    ]
+    # ga distances
+    if "ga_length" in codename:
+        syntactic_distance_names = [
+            "Hamming"
+        ]
+    gold_names = ["D_TP", "FMPT", "SP", "STEPS"]
+    
+    for name in gold_names + syntactic_distance_names:
+        w = np.genfromtxt(codename + "/" + name + ".dat")
+        assert(len(w) == len(names))
+        make_grid(w, names, codename + "/" + name + ".pdf")
 
 def make_grid(w, names, filename):
     # rescale/reshape: avoid uniform colours, and make higher numbers
@@ -88,8 +115,17 @@ def make_correlation_table(codename, txt=""):
 
     gold_names = ["D_TP", "FMPT", "SP", "STEPS"]
     d = {}
+    array_len = -1
     for name in syntactic_distance_names + gold_names:
+        print("reading " + name)
         d[name] = np.genfromtxt(codename + "/" + name + ".dat")
+        array_len = len(d[name])
+
+    # sample_positions = random.sample([(i, j)
+    #                                   for i in range(array_len)
+    #                                   for j in range(array_len)], 1000)
+    # def sample_from(d):
+    #     return np.array([d[i][j] for i, j in sample_positions])
 
     def do_line(syn):
         line = syn.replace("_TP", r"$_{\mathrm{TP}}$")
@@ -113,22 +149,10 @@ def make_correlation_table(codename, txt=""):
     print(r"""\end{tabular}
 \end{table}""")
 
-
 if __name__ == "__main__":
-    # for fast testing of aesthetic changes
-    # w = np.array([[3, 4, 5, 6], [1, 2, 3, 4], [2, 3, 4, 5], [6, 7, 8, 9]])
-
     codename = sys.argv[1]
-    txt = sys.argv[2]
-    make_correlation_table(codename, txt)
     
+    # txt = sys.argv[2]
+    # make_correlation_table(codename, txt)
     
-    # names = open(codename + "_trees.txt").read().strip().split("\n")
-    # names = map(lambda x: x.strip(), names)
-
-    # #w = np.genfromtxt(codename + "_tm.dat")
-    # for suffix in ["mean", "len", "min", "max", "std"]:
-    #     w = np.genfromtxt("randomwalking_x{0}.dat".format(suffix))
-    #     assert(len(w) == len(names))
-    #     #make_grid(w, None, codename + "_tm.pdf")
-    #     make_grid(w, None, "randomwalking_x{0}.pdf".format(suffix))
+    make_grid_plots(codename)

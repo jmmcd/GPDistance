@@ -111,7 +111,7 @@ public class AllTrees {
     }
 
     public static void main(String args[]) {
-        int maxDepth = 2;
+        int maxDepth = Integer.parseInt(args[0]);
         AllTrees generator = new AllTrees(new Language(maxDepth));
         ArrayList<Node> space = generator.generateEntireSpace(maxDepth);
         HashMap<String, Boolean> names = new HashMap<String,Boolean>();
