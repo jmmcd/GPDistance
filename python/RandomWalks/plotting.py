@@ -41,14 +41,15 @@ def make_grid_plots(codename):
         make_grid(w, names, codename + "/" + name + ".pdf")
 
 def make_grid(w, names, filename):
-    # rescale/reshape: avoid uniform colours, and make higher numbers
-    # darker
-    de = -np.log(w)
+    # TODO for now we dont rescale the data, although there are some
+    # matrices which would benefit from a log transform or
+    # similar. matshow() internally scales the data so that the
+    # smallest numbers go to black and largest to white.
 
     fig = plt.figure(figsize=(25, 25))
     ax = fig.add_subplot(1, 1, 1)
     ax.set_frame_on(False)
-    im = ax.matshow(de, cmap=cm.gray, interpolation="none")
+    im = ax.matshow(w, cmap=cm.gray, interpolation="none")
 
     if names:
         # Turn labels on
