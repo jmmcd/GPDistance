@@ -315,13 +315,9 @@ def generate_ga_tm(codename, pmut=None):
 
     
 if __name__ == "__main__":
-    tm = make_random_matrix(1000)
-    print tm
-    print floyd_warshall(tm)
-    
-    # codename = sys.argv[1]
-    # if "per_ind" in codename:
-    #     generate_ga_tm(codename)
-    # else:
-    #     generate_ga_tm(codename, 0.1)
-    # read_and_get_dtp_fmpt_sp_steps(codename)
+    codename = sys.argv[1]
+    if "per_ind" in codename:
+        generate_ga_tm(codename)
+    else:
+        generate_ga_tm(codename, 0.1)
+    read_and_get_dtp_fmpt_sp_steps(codename)
