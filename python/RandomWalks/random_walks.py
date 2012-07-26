@@ -222,9 +222,7 @@ def floyd_warshall(adj):
     # http://www.depthfirstsearch.net/blog/2009/12/03/computing-all-shortest-paths-in-python/
     n = len(adj)
     for k in range(n):
-        adj = np.minimum(adj,
-                         np.tile(adj[:, k].reshape(-1, 1), (1, n)) +
-                         np.tile(adj[k, :], (n, 1)))
+        adj = np.minimum(adj, np.add.outer(adj[:,k],adj[k,:]))
     return adj
 
 
@@ -317,9 +315,13 @@ def generate_ga_tm(codename, pmut=None):
 
     
 if __name__ == "__main__":
-    codename = sys.argv[1]
-    if "per_ind" in codename:
-        generate_ga_tm(codename)
-    else:
-        generate_ga_tm(codename, 0.1)
-    read_and_get_dtp_fmpt_sp_steps(codename)
+    tm = make_random_matrix(1000)
+    print tm
+    print floyd_warshall(tm)
+    
+    # codename = sys.argv[1]
+    # if "per_ind" in codename:
+    #     generate_ga_tm(codename)
+    # else:
+    #     generate_ga_tm(codename, 0.1)
+    # read_and_get_dtp_fmpt_sp_steps(codename)
