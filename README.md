@@ -18,14 +18,14 @@ types of distance:
   Lee Spector (see http://push.i3ci.hampshire.edu/2011/06/07/overlap/).
 
 * Operator distances work by studying the transition probabilities
-  between pairs of nodes via particular operators. In this way we can
-  calculate the *expected length of a random walk* (ELRW), the
-  *highest-probability path* (HPP), and the *shortest path length*
-  (SPL). The ELRW is calculated with the help of ergodic.py, Copyright
-  (C) 2012 Sergio J. Rey of PySAL (see
-  http://code.google.com/p/pysal/), derived from the treatment in
-  Kemeny, John, G. and J. Laurie Snell (1976) Finite Markov
-  Chains. Springer-Verlag, Berlin.
+  between pairs of nodes via particular operators. We start with the
+  *transition probability* (TP) between each pair of nodes. We can
+  calculate the *mean first passage time* (MFPT), the *shortest path*
+  (SP), and the *minimum number of steps* (STEPS). The MFPT is
+  calculated with the help of ergodic.py, Copyright (C) 2012 Sergio
+  J. Rey of PySAL (see http://code.google.com/p/pysal/), derived from
+  the treatment in Kemeny, John, G. and J. Laurie Snell (1976) Finite
+  Markov Chains. Springer-Verlag, Berlin.
 
 
 Build

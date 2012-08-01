@@ -16,9 +16,10 @@ import itertools
 
 # this import is from
 # http://www.pysal.org/library/spatial_dynamics/ergodic.html: it
-# implements the first-mean-passage-time algorithm, as described in
-# Kemeny, John, G. and J. Laurie Snell (1976) Finite Markov
-# Chains. Springer-Verlag, Berlin.
+# implements the mean-first-passage-time algorithm, also known as the
+# first-mean-passage-time, as described in Kemeny, John, G. and
+# J. Laurie Snell (1976) Finite Markov Chains. Springer-Verlag,
+# Berlin.
 import ergodic
 
 def normalise_by_row(d):
@@ -150,9 +151,10 @@ def set_self_transition_zero(x):
         x[i][i] = 0.0
         
 
-def get_fmpt(x):
-    """Calculate first-mean-passage time of a given transition
-    matrix. Set self-transitions to zero.
+def get_mfpt(x):
+    """Calculate mean-first-passage time of a given transition
+    matrix. Set self-transitions to zero. Note that the pysal code
+    (ergodic.py) calls it "first-mean-passage-time".
 
     """
     # NB! The ergodic code expects a matrix, not a numpy array. Breaks
@@ -163,15 +165,15 @@ def get_fmpt(x):
     return x
     
 def test_matrix_size(n):
-    """Test how big the tm can be before get_fmpt becomes
+    """Test how big the tm can be before get_mfpt becomes
     slow. n = 4000 is fine, n = 10000 starts paging out (at least 30
     minutes).
 
     """
     d = make_random_matrix(n)
-    fmpt = get_fmpt(d)
-    print("min", np.min(fmpt))
-    print("max", np.max(fmpt))
+    mfpt = get_mfpt(d)
+    print("min", np.min(mfpt))
+    print("max", np.max(mfpt))
 
 def invert_probabilities(adj):
     """Convert a probability into an edge traversal cost. It's ok to
@@ -257,7 +259,7 @@ def get_dtp(t):
     set_self_transition_zero(x)
     return x
     
-def read_and_get_dtp_fmpt_sp_steps(codename):
+def read_and_get_dtp_mfpt_sp_steps(codename):
     t = read_transition_matrix(codename + "/TP.dat")
 
     # This gets D_TP, which is just the transition probability inverted
@@ -267,8 +269,8 @@ def read_and_get_dtp_fmpt_sp_steps(codename):
     
     # This gets the first mean passage time, ie the expected length of
     # a random walk.
-    f = get_fmpt(t)
-    outfilename = codename + "/FMPT.dat"
+    f = get_mfpt(t)
+    outfilename = codename + "/MFPT.dat"
     np.savetxt(outfilename, f)
 
     # This gets the cost of the shortest path between pairs. The cost
@@ -322,4 +324,4 @@ if __name__ == "__main__":
         generate_ga_tm(codename)
     else:
         generate_ga_tm(codename, 0.1)
-    read_and_get_dtp_fmpt_sp_steps(codename)
+    read_and_get_dtp_mfpt_sp_steps(codename)
