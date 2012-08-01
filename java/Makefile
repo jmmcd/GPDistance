@@ -16,3 +16,9 @@ completeMatricesDepth2:
 testdistances:
 	java -cp ${cp} TreeDistance.OverlapDistance
 	java -cp ${cp} TreeDistance.TreeDistance
+
+completeSpaceDepth1:
+	java -cp ${cp} GP.AllTrees 1
+
+completeSpaceDepth2:
+	java -cp ${cp} GP.AllTrees 2

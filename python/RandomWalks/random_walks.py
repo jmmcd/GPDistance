@@ -224,9 +224,7 @@ def floyd_warshall(adj):
     # http://www.depthfirstsearch.net/blog/2009/12/03/computing-all-shortest-paths-in-python/
     n = len(adj)
     for k in range(n):
-        adj = np.minimum(adj,
-                         np.tile(adj[:, k].reshape(-1, 1), (1, n)) +
-                         np.tile(adj[k, :], (n, 1)))
+        adj = np.minimum(adj, np.add.outer(adj[:,k],adj[k,:]))
     return adj
 
 
