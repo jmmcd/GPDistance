@@ -33,7 +33,7 @@ def make_grid_plots(codename):
         syntactic_distance_names = [
             "Hamming"
         ]
-    gold_names = ["D_TP", "FMPT", "SP", "STEPS"]
+    gold_names = ["D_TP", "MFPT", "SP", "STEPS"]
     
     for name in gold_names + syntactic_distance_names:
         w = np.genfromtxt(codename + "/" + name + ".dat")
@@ -110,11 +110,11 @@ def make_correlation_table(codename, txt=""):
 \caption{Correlations between distance measures: """ + txt)
     print(r"""\label{tab:correlationresults_""" + os.path.basename(codename) + r"}}")
     print(r"""\begin{tabular}{l|l|l|l|l}
- & D$_{\mathrm{TP}}$ & FMPT & SP & STEPS \\
+ & D$_{\mathrm{TP}}$ & MFPT & SP & STEPS \\
 \hline
 \hline""")
 
-    gold_names = ["D_TP", "FMPT", "SP", "STEPS"]
+    gold_names = ["D_TP", "MFPT", "SP", "STEPS"]
     d = {}
     array_len = -1
     for name in syntactic_distance_names + gold_names:
