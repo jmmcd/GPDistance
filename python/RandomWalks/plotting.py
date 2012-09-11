@@ -72,9 +72,7 @@ def get_kendall_tau(x, y):
      this runs Kendall's tau-b, accounting for ties and suitable for
      square tables:
      [http://en.wikipedia.org/wiki/Kendall_tau_rank_correlation_coefficient#Tau-b]
-     [http://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.kendalltau.html]
-
-    """
+     [http://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.kendalltau.html]"""
 
     if "scipy" not in locals():
         import scipy.stats
