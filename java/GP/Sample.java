@@ -33,7 +33,8 @@ public class Sample {
 
     // Given a list of trees, write out a matrix of distances between
     // all pairs, for many different types of distance.
-    public void writeMatrices(ArrayList<String> trees, String codename) {
+    public void writeMatrices(ArrayList<String> trees, String codename,
+                              boolean writeNonNormalised) {
 
         String [] distanceNames = {
             "TP", "NCD", "FVD",
@@ -52,7 +53,7 @@ public class Sample {
                 String dirname = "../results/" + codename + "/";
                 (new File(dirname)).mkdirs();
                 String filename;
-                if (distance.equals("TP") && codename.contains("uniform")) {
+                if (distance.equals("TP") && writeNonNormalised) {
                     // Since we're sampling from the space, the
                     // transition probabilities won't sum to 1. So
                     // save to _nonnormalised.
@@ -98,7 +99,7 @@ public class Sample {
         while (retval.size() < n) {
             Tree tree = new Tree("x");
             mutator.grow(tree.getRoot(), maxDepth);
-            String s = tree.getRoot().toStringAsTree();
+            String s = tree.toString();
             if (retval.indexOf(s) == -1) {
                 retval.add(s);
             }
@@ -165,13 +166,14 @@ public class Sample {
     // This does Metropolis-Hastings sampling as adapted for GP by
     // Vanneschi (see Vanneschi PhD thesis available online, p 130).
     // We run M-H multiple times, starting from the same "centre"
-    // node, then return a list of all individuals encountered. FIXME
-    // this needs testing in the new context.
+    // node, then return a list of all individuals encountered. 
     public ArrayList<String>
         sampleMetropolisHastings
-        (Tree gamma_0, int npaths, int nsteps, boolean selection) {
+        (int nsteps, int nindividuals,
+         boolean selection, int ntries) {
 
-        int ntries = 10;
+        Tree gamma_0 = new Tree("x");
+        mutator.grow(gamma_0.getRoot(), maxDepth);
 
         ArrayList<String> retval = new ArrayList<String>();
 
@@ -182,20 +184,28 @@ public class Sample {
             fgamma_0 = (float) (gamma_0.fitness());
         }
 
-        for (int i = 0; i < npaths; i++) {
+        while (retval.size() < nindividuals) {
             Tree gamma_i = gamma_0;
             float fgamma_i = fgamma_0;
 
-            for (int j = 0; j < nsteps; j++) {
+            for (int j = 0; j < nsteps && retval.size() < nindividuals; j++) {
 
                 if (!selection) {
-                    gamma_i = mutator.mutate(gamma_i);
-                    retval.add(gamma_i.toString());
+                    // Try up to ntries times to find an individual
+                    // not already in the sample. If we have to give
+                    // up, don't add anything on this iteration.
+                    for (int k = 0; k < ntries; k++) {
+                        gamma_i = mutator.mutate(gamma_i);
+                        String s = gamma_i.toString();
+                        if (retval.indexOf(s) == -1) {
+                            retval.add(s);
+                            break;
+                        }
+                    }
 
                 } else {
-                    // try up to ntries times to find a better
-                    // individual. if we have to give up, then just
-                    // keep the final one and loop.
+                    // Try up to ntries times to find a *better*
+                    // individual not already in the sample. 
                     for (int k = 0; true; k++) {
                         Tree delta = mutator.mutate(gamma_i);
                         float fdelta = (float) delta.fitness();
@@ -208,10 +218,26 @@ public class Sample {
 						} else {
 							alpha = min(1.0f, fgamma_i / fdelta);
 						}
-                        if (rng.nextDouble() <= alpha || k == ntries) {
-                            gamma_i = delta;
-                            fgamma_i = fdelta;
-                            retval.add(gamma_i.toString());
+                        if (rng.nextDouble() <= alpha) {
+                            String s = gamma_i.toString();
+                            if (retval.indexOf(s) == -1) {
+                                // Success: accept the individual and
+                                // quit this k-loop
+                                retval.add(s);
+                                gamma_i = delta;
+                                fgamma_i = fdelta;
+                                break;
+                            }
+                        } else if (k > ntries) {
+                            // Failure: ran out of tries. Accept the
+                            // last individual only if it's not
+                            // already in the sample
+                            String s = gamma_i.toString();
+                            if (retval.indexOf(s) == -1) {
+                                retval.add(s);
+                            }
+                            // Whether we accepted or not, quit this
+                            // k-loop.
                             break;
                         }
                     }
@@ -299,14 +325,24 @@ public class Sample {
             // write out the matrices of distances for the entire
             // space of given depth
             Sample sample = new Sample(maxDepth);
-            sample.writeMatrices(sample.sampleComplete(), "depth_" + maxDepth);
+            sample.writeMatrices(sample.sampleComplete(), "depth_" + maxDepth, false);
+            
         } else if (args.length == 2 && args[0].equals("uniformSampleMatrices")) {
             int maxDepth = new Integer(args[1]);
             // write out the matrices of distances for a sample from
             // the space of given depth, sampled randomly
             Sample sample = new Sample(maxDepth);
             sample.writeMatrices(sample.sampleUniform(1000),
-                                 "uniform_depth_" + maxDepth);
+                                 "uniform_depth_" + maxDepth, true);
+            
+        } else if (args.length == 2 && args[0].equals("rwSampleMatrices")) {
+            int maxDepth = new Integer(args[1]);
+            // write out the matrices of distances for a sample from
+            // the space of given depth, sampled by Metropolis-Hastings
+            Sample sample = new Sample(maxDepth);
+            sample.writeMatrices(sample.sampleMetropolisHastings(10, 20, false, 10),
+                                 "rw_sample_depth_" + maxDepth, true);
+            
         } else {
             System.out.println("Please read the source to see usage.");
         }

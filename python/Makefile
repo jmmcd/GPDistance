@@ -9,3 +9,6 @@ completeMatricesDepth2:
 
 uniformSampleDepth6:
 	cd RandomWalks && ./random_walks.py ../../results/uniform_depth_6/
+
+rwSampleDepth6:
+	cd RandomWalks && ./random_walks.py ../../results/rw_sample_depth_6/

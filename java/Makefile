@@ -25,3 +25,6 @@ completeSpaceDepth2:
 
 uniformSampleDepth6:
 	java -cp ${cp} GP.Sample uniformSampleMatrices 6
+
+rwSampleDepth6:
+	java -cp ${cp} GP.Sample rwSampleMatrices 6
