@@ -36,7 +36,7 @@ public class Sample {
     public void writeMatrices(ArrayList<String> trees, String codename) {
 
         String [] distanceNames = {
-            "1STP", "NCD", "FVD",
+            "TP", "NCD", "FVD",
             "NodeCount", "MinDepth", "MeanDepth", "MaxDepth",
             "Symmetry", "MeanFanout", "DiscreteMetric",
             "TED",
@@ -51,7 +51,15 @@ public class Sample {
                 // write to ../results/<codename>/<distance>.dat
                 String dirname = "../results/" + codename + "/";
                 (new File(dirname)).mkdirs();
-                String filename = dirname + distance + ".dat";
+                String filename;
+                if (distance.equals("TP") && codename.contains("uniform")) {
+                    // Since we're sampling from the space, the
+                    // transition probabilities won't sum to 1. So
+                    // save to _nonnormalised.
+                    filename = dirname + "TP_nonnormalised.dat";
+                } else {
+                    filename = dirname + distance + ".dat";
+                }
                 files.put(distance, new FileWriter(filename)); 
             }
 
@@ -82,6 +90,21 @@ public class Sample {
         }
         
     }
+
+
+    public ArrayList<String> sampleUniform(int n) {
+
+        ArrayList<String> retval = new ArrayList<String>();
+        while (retval.size() < n) {
+            Tree tree = new Tree("x");
+            mutator.grow(tree.getRoot(), maxDepth);
+            String s = tree.getRoot().toStringAsTree();
+            if (retval.indexOf(s) == -1) {
+                retval.add(s);
+            }
+        }
+        return retval;
+    }        
 
 
     public void randomWalking(Boolean hillClimb) {
@@ -229,7 +252,7 @@ public class Sample {
 
         // One-shot transition probability.
         double transProb = mutator.transitionProbability(sTree, tTree);
-        retval.put("1STP", transProb);
+        retval.put("TP", transProb);
 
         // NCD
         double ncd = TreeDistance.getUniversalDistance(s.toString(), t.toString());
@@ -277,6 +300,13 @@ public class Sample {
             // space of given depth
             Sample sample = new Sample(maxDepth);
             sample.writeMatrices(sample.sampleComplete(), "depth_" + maxDepth);
+        } else if (args.length == 2 && args[0].equals("uniformSampleMatrices")) {
+            int maxDepth = new Integer(args[1]);
+            // write out the matrices of distances for a sample from
+            // the space of given depth, sampled randomly
+            Sample sample = new Sample(maxDepth);
+            sample.writeMatrices(sample.sampleUniform(1000),
+                                 "uniform_depth_" + maxDepth);
         } else {
             System.out.println("Please read the source to see usage.");
         }

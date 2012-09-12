@@ -9,3 +9,7 @@ completeMatricesDepth1:
 completeMatricesDepth2:
 	cd java && make completeMatricesDepth2
 	cd python && make completeMatricesDepth2
+
+uniformSampleMatricesDepth6:
+	cd java && make uniformSampleDepth6
+	cd python && make uniformSampleDepth6
