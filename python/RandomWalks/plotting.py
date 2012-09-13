@@ -38,8 +38,8 @@ def make_grid_plots(codename):
     for name in gold_names + syntactic_distance_names:
         w = np.genfromtxt(codename + "/" + name + ".dat")
         assert(len(w) == len(names))
-        make_grid(w, names, codename + "/" + name + ".pdf")
-
+        make_grid(w, names, codename + "/" + name)
+        
 def make_grid(w, names, filename):
     # TODO for now we dont rescale the data, although there are some
     # matrices which would benefit from a log transform or
@@ -63,7 +63,8 @@ def make_grid(w, names, filename):
         ax.set_yticklabels([], [])
     
     ax.tick_params(length=0, pad=3.0)
-    fig.savefig(filename)
+    #fig.savefig(filename + ".pdf")
+    fig.savefig(filename + ".png")
 
 def get_kendall_tau(x, y):
     """Return Kendall's tau, a non-parametric test of association. If
