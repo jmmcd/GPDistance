@@ -18,24 +18,29 @@ types of distance:
   Lee Spector (see http://push.i3ci.hampshire.edu/2011/06/07/overlap/).
 
 * Operator distances work by studying the transition probabilities
-  between pairs of nodes via particular operators. In this way we can
-  calculate the *expected length of a random walk* (ELRW), the
-  *highest-probability path* (HPP), and the *shortest path length*
-  (SPL). The ELRW is calculated with the help of ergodic.py, Copyright
-  (C) 2012 Sergio J. Rey of PySAL (see
-  http://code.google.com/p/pysal/), derived from the treatment in
-  Kemeny, John, G. and J. Laurie Snell (1976) Finite Markov
-  Chains. Springer-Verlag, Berlin.
+  between pairs of nodes via particular operators. We start with the
+  *transition probability* (TP) between each pair of nodes. We can
+  calculate the *mean first passage time* (MFPT), the *shortest path*
+  (SP), and the *minimum number of steps* (STEPS). The MFPT is
+  calculated with the help of ergodic.py, Copyright (C) 2012 Sergio
+  J. Rey of PySAL (see http://code.google.com/p/pysal/), derived from
+  the treatment in John G. Kemeny and J. Laurie Snell, 1976, *Finite
+  Markov Chains*, Springer-Verlag, Berlin.
 
 
 Build
 -----
 
-There's a Makefile. Try `make` to compile everything. It calls into
-Makefiles in sub-directories to compile them. The Python code requires
-NumPy and SciPy. Use `apt` or your favourite package manager, or try
-`pip install numpy scipy`, but be warned that installing them is known
-to cause pain especially on OSX.
+You need to get JGraphT and JScheme libraries (in fact, they're only
+needed for peripheral functionality, but I haven't tried to remove the
+dependency yet). They're easily available online. Copy them to
+java/libraries.
+
+Then there's a Makefile. Try `make` to compile everything. It calls
+into Makefiles in sub-directories to compile them. The Python code
+requires NumPy and SciPy. Use `apt` or your favourite package manager,
+or try `pip install numpy scipy`, but be warned that installing them
+is known to cause pain especially on OSX.
 
 
 Usage
@@ -43,7 +48,9 @@ Usage
 
 See the root Makefile to see some possibilities for what to run. Eg to
 write matrices with all pairwise distances for the complete space of
-depth 1, try `make completeMatrices1`.
+depth 1, try `make completeMatrices1`. Larger experiments, such as
+`make completeMatrices2` or `make uniformSampleMatricesDepth6` will
+take a long time, some hours.
 
 
 TODO

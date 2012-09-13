@@ -22,3 +22,6 @@ completeSpaceDepth1:
 
 completeSpaceDepth2:
 	java -cp ${cp} GP.AllTrees 2
+
+uniformSampleDepth6:
+	java -cp ${cp} GP.Sample uniformSampleMatrices 6
