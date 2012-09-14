@@ -21,3 +21,4 @@ rwSampleMatricesDepth6:
 mhSampleMatricesDepth6:
 	cd java && make mhSampleDepth6
 	cd python && make mhSampleDepth6
+

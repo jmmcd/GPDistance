@@ -33,12 +33,27 @@ public class Sample {
 
     }
 
-    // Given a list of trees, write out a matrix of distances between
-    // all pairs, for many different types of distance.
-    public void writeMatrices(ArrayList<String> trees, String codename,
-                              boolean writeNonNormalised) {
+    public double mean(ArrayList<Integer> a) {
+        assert a.size() > 0;
+        double sum = 0.0;
+        for (Integer i: a) {
+            sum += i;
+        }
+        return sum / a.size();
+    }
 
-        String [] distanceNames = {
+    // Given a list of trees, write out a matrix of distances between
+    // all pairs, for many different types of distance. Can pass in
+    // results from a random-walking simulation as mfpte (pass null
+    // otherwise).
+    public void writeMatrices(ArrayList<String> trees,
+                              String codename,
+                              boolean writeNonNormalised,
+                              HashMap<String, HashMap<String, Double>> mfpte
+                              ) {
+
+        ArrayList<String> distanceNames = new ArrayList<String>();
+        String _distanceNames[] = {
             "TP", "NCD", "FVD",
             "NodeCount", "MinDepth", "MeanDepth", "MaxDepth",
             "Symmetry", "MeanFanout", "DiscreteMetric",
@@ -47,10 +62,19 @@ public class Sample {
             "OVD"
         };
 
+        for (String d: _distanceNames) {
+            distanceNames.add(d);
+        }
+
+        if (mfpte != null) {
+            distanceNames.add("MFPTE");
+        }        
+
         HashMap<String, FileWriter> files = new HashMap<String, FileWriter>();
         try {
             // Open files
             for (String distance: distanceNames) {
+
                 // write to ../results/<codename>/<distance>.dat
                 String dirname = "../results/" + codename + "/";
                 (new File(dirname)).mkdirs();
@@ -71,8 +95,16 @@ public class Sample {
                 // for every destination tree
                 for (String t: trees) {
 
-                    // Get distances and write them out
+                    // Get distances...
                     HashMap<String, Double> distances = getDistances(s, t);
+
+                    // ...hack in the mfpte value if there is one,
+                    // else zero...
+                    if (mfpte != null) {
+                        distances.put("MFPTE", mfpte.get(s).get(t));
+                    }
+
+                    // ... and write them out
                     for (String distance: distanceNames) {
                         files.get(distance).write(distances.get(distance) + " ");
                     }
@@ -109,64 +141,106 @@ public class Sample {
         return retval;
     }        
 
+    // Estimate the length of a random walk by simulation. This
+    // function doesn't collect a sample of individuals. It just
+    // performs walks and saves the number of steps between pairs of
+    // individuals. So it aims to estimate FMPT by simulation rather
+    // than exact methods on a sample from the space.
+    public HashMap<String, HashMap<String, Double>>
+        randomWalking(ArrayList<String> ofInterest) {
 
-    public void randomWalking(Boolean hillClimb) {
-        int nStarts = 1000;
-        int length = 1298;
+        // lastOccur holds the individuals of interest as strings and
+        // the number of steps since their last occurence, as
+        // integers. These are created first.  Then when we're
+        // walking, anytime we encounter one of these we learn
+        // something about it.
+        HashMap<String, Integer> lastOccur =
+            new HashMap<String, Integer>();
 
-        double oldfit = 0.0, newfit = 0.0;
+        // walkLengths holds pairs of individuals of interest
+        // (strings) and a list of samples of walkLengths between
+        // them.
+        HashMap<String, HashMap<String, ArrayList<Integer>>> walkLengths =
+            new HashMap<String, HashMap<String, ArrayList<Integer>>>();
 
-        for (int i = 0; i < nStarts; i++) {
-            ArrayList<String> walk = new ArrayList<String>();
-            
-            // start with a random node
-            Tree tree = new Tree("x");
-            mutator.grow(tree.getRoot(), maxDepth);
-            if (hillClimb) {
-                oldfit = tree.fitness();
-            }
-            String tt = tree.toString();
-            // System.out.println("starting on " + tt);
-            walk.add(tt);
-
-            // perform a random walk
-            int j = 1;
-            int tries = 0;
-            while (j <= length && tries < length) {
-
-                tree = mutator.mutate(tree);
-                if (hillClimb) {
-                    newfit = tree.fitness();
-                    if (newfit > oldfit) {
-                        // if the new one is worse, throw it away and loop
-                        tries += 1;
-                        continue;
-                    }
-                    oldfit = newfit;
-                }
-                String ts = tree.toString();
-
-                // go through previous steps in this walk and for each
-                // one, save the number of steps from there to here.
-                // But be careful to exclude loops using lastIndexOf().
-                int prev = walk.lastIndexOf(ts);
-                // add ts after getting the previous instance of it,
-                // if any.
-                walk.add(ts);
-                // System.out.println("on mutation " + j + ", ts = " + ts + ", prev = " + prev);
-                for (int k = prev + 1; k < j; k++) {
-                    System.out.println(walk.get(k) + ":" + ts + ":" + (j - k));
-                }
-                
-                j += 1;
-            }
+        // set up lastOccur
+        for (String s: ofInterest) {
+            lastOccur.put(s, -1);
         }
-    }
+
+        // set up walkLengths
+        for (String s: lastOccur.keySet()) {
+            HashMap<String, ArrayList<Integer>> tmp =
+                new HashMap<String, ArrayList<Integer>>();
+            for (String t: lastOccur.keySet()) {
+                tmp.put(t, new ArrayList<Integer>());
+            }
+            walkLengths.put(s, tmp);
+        }
+
+        // start with a random node
+        Tree current = new Tree("x");
+        mutator.grow(current.getRoot(), maxDepth);
+        String cs = current.toString();
+        
+        // perform a random walk
+        for (int i = 0; i < 1000; i++) {
+
+            Integer csLastOccur = lastOccur.get(cs);
+            if (csLastOccur == null) {
+
+                // It's not one of our individuals of interest
+                // +1 to all non-negative entries in lastOccur
+                for (String t: lastOccur.keySet()) {
+                    int tLastOccur = lastOccur.get(t);
+                    if (tLastOccur != -1) {
+                        lastOccur.put(t, lastOccur.get(t) + 1);
+                    }
+                }
                 
+            } else {
+                
+                // It's one of our individuals of interest: for all
+                // non-negative t in lastOccur, save a sample (t, s)
+                // in walkLengths
+                for (String t: lastOccur.keySet()) {
+                    int tLastOccur = lastOccur.get(t);
+                    if (tLastOccur != -1) {
+                        walkLengths.get(t).get(cs).add(tLastOccur);
+                    }
+                }
+                // Mark the last occurrence as now.
+                lastOccur.put(cs, 0);
+            }
+
+            current = mutator.mutate(current);
+            cs = current.toString();
+        }
+
+        // Get the mean walk lengths and return them. FIXME should
+        // possibly consider assuming a distribution, fitting that
+        // distribution, and returning the mean?
+        HashMap<String, HashMap<String, Double>> meanWalkLengths =
+            new HashMap<String, HashMap<String, Double>>();
+        for (String s: lastOccur.keySet()) {
+            HashMap<String, Double> tmp =
+                new HashMap<String, Double>();
+            for (String t: lastOccur.keySet()) {
+                tmp.put(t, mean(walkLengths.get(t).get(s)));
+            }
+            meanWalkLengths.put(s, tmp);
+        }
+        return meanWalkLengths;
+    }
+
+
 
     // Sample by random-walking. Aim is to collect a sample of size
     // precisely nindividuals. Use multiple walks to do so if needed,
-    // each lasting up to nsteps.
+    // each lasting up to nsteps. The distances from the first
+    // individual to all the others will probably be the most
+    // reliable, so when we get the MFPT matrix (for example), we
+    // should only look at the top row.
     public ArrayList<String> sampleRandomWalk
         (int nsteps, int nindividuals, int ntries) {
 
@@ -203,7 +277,10 @@ public class Sample {
     // [http://personal.disco.unimib.it/Vanneschi/thesis_vanneschi.pdf],
     // p 130). We run M-H multiple times if needed, starting from the
     // same "centre" node, until we have collected nindividuals, then
-    // return the list.
+    // return the list. The distances from the first individual to all
+    // the others will probably be the most reliable, so when we get
+    // the MFPT matrix (for example), we should only look at the top
+    // row.
     public ArrayList<String>
         sampleMetropolisHastings
         (int nsteps, int nindividuals, int ntries) {
@@ -354,15 +431,19 @@ public class Sample {
             // write out the matrices of distances for the entire
             // space of given depth
             Sample sample = new Sample(maxDepth);
-            sample.writeMatrices(sample.sampleComplete(), "depth_" + maxDepth, false);
+            sample.writeMatrices(sample.sampleComplete(),
+                                 "depth_" + maxDepth,
+                                 false, null);
             
         } else if (args.length == 2 && args[0].equals("uniformSampleMatrices")) {
             int maxDepth = new Integer(args[1]);
-            // write out the matrices of distances for a sample from
-            // the space of given depth, sampled randomly
+            // sample some individuals randomly and get distances
+            // between them.
             Sample sample = new Sample(maxDepth);
-            sample.writeMatrices(sample.sampleUniform(1000),
-                                 "uniform_depth_" + maxDepth, true);
+            ArrayList<String> ofInterest = sample.sampleUniform(10);
+            sample.writeMatrices(ofInterest,
+                                 "uniform_depth_" + maxDepth,
+                                 true, null);
             
         } else if (args.length == 2 && args[0].equals("rwSampleMatrices")) {
             int maxDepth = new Integer(args[1]);
@@ -370,7 +451,8 @@ public class Sample {
             // the space of given depth, sampled by random walk.
             Sample sample = new Sample(maxDepth);
             sample.writeMatrices(sample.sampleRandomWalk(10, 20, 10),
-                                 "rw_sample_depth_" + maxDepth, true);
+                                 "rw_sample_depth_" + maxDepth,
+                                 true, null);
             
         } else if (args.length == 2 && args[0].equals("mhSampleMatrices")) {
             int maxDepth = new Integer(args[1]);
@@ -379,7 +461,20 @@ public class Sample {
             // Metropolis-Hastings
             Sample sample = new Sample(maxDepth);
             sample.writeMatrices(sample.sampleMetropolisHastings(10, 20, 10),
-                                 "mh_sample_depth_" + maxDepth, true);
+                                 "mh_sample_depth_" + maxDepth,
+                                 true, null);
+            
+        } else if (args.length == 2 && args[0].equals("randomWalkingMatrices")) {
+            int maxDepth = new Integer(args[1]);
+            // sample some individuals randomly and estimate random
+            // walk lengths between them by simulation.
+            Sample sample = new Sample(maxDepth);
+            ArrayList<String> ofInterest = sample.sampleUniform(10);
+            HashMap<String, HashMap<String, Double>>
+                hshsali = sample.randomWalking(ofInterest);
+            sample.writeMatrices(ofInterest,
+                                 "random_walking_" + maxDepth,
+                                 true, hshsali);
             
         } else {
             System.out.println("Please read the source to see usage.");
