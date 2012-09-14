@@ -12,3 +12,6 @@ uniformSampleDepth6:
 
 rwSampleDepth6:
 	cd RandomWalks && ./random_walks.py ../../results/rw_sample_depth_6/
+
+mhSampleDepth6:
+	cd RandomWalks && ./random_walks.py ../../results/mh_sample_depth_6/

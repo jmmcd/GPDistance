@@ -17,3 +17,7 @@ uniformSampleMatricesDepth6:
 rwSampleMatricesDepth6:
 	cd java && make rwSampleDepth6
 	cd python && make rwSampleDepth6
+
+mhSampleMatricesDepth6:
+	cd java && make mhSampleDepth6
+	cd python && make mhSampleDepth6

@@ -28,3 +28,6 @@ uniformSampleDepth6:
 
 rwSampleDepth6:
 	java -cp ${cp} GP.Sample rwSampleMatrices 6
+
+mhSampleDepth6:
+	java -cp ${cp} GP.Sample mhSampleMatrices 6

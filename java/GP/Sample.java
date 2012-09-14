@@ -21,6 +21,8 @@ public class Sample {
     int maxDepth;
     Language language;
     Mutation mutator;
+
+    double epsilon = 0.000001;
     
     public Sample(int _maxDepth) {
 
@@ -218,27 +220,38 @@ public class Sample {
 						} else {
 							alpha = min(1.0f, fgamma_i / fdelta);
 						}
+                        if (Double.isNaN(alpha) || alpha <= epsilon) {
+                            // It can happen. It's not worth worrying about.
+                            alpha = epsilon;
+                        }
+                        // System.out.println("fgamma_i = " + fgamma_i + " fdelta = " + fdelta + " alpha = " + alpha);
                         if (rng.nextDouble() <= alpha) {
-                            String s = gamma_i.toString();
+                            String s = delta.toString();
                             if (retval.indexOf(s) == -1) {
                                 // Success: accept the individual and
                                 // quit this k-loop
+                                /// System.out.println("success, accepting.");
                                 retval.add(s);
                                 gamma_i = delta;
                                 fgamma_i = fdelta;
                                 break;
                             }
+                            // System.out.println("fitness ok, alpha ok, but ind already in sample");
                         } else if (k > ntries) {
                             // Failure: ran out of tries. Accept the
                             // last individual only if it's not
                             // already in the sample
-                            String s = gamma_i.toString();
+                            // System.out.println("failure, ran out of tries to find good ind");
+                            String s = delta.toString();
                             if (retval.indexOf(s) == -1) {
+                                // System.out.println("but accepting, ind wasn't in sample");
                                 retval.add(s);
                             }
                             // Whether we accepted or not, quit this
                             // k-loop.
                             break;
+                        } else {
+                            // System.out.println("didn't accept because of alpha, looping.");
                         }
                     }
                 }
@@ -338,10 +351,21 @@ public class Sample {
         } else if (args.length == 2 && args[0].equals("rwSampleMatrices")) {
             int maxDepth = new Integer(args[1]);
             // write out the matrices of distances for a sample from
-            // the space of given depth, sampled by Metropolis-Hastings
+            // the space of given depth, sampled by
+            // Metropolis-Hastings but *without* selection, so
+            // effectively just random walk.
             Sample sample = new Sample(maxDepth);
             sample.writeMatrices(sample.sampleMetropolisHastings(10, 20, false, 10),
                                  "rw_sample_depth_" + maxDepth, true);
+            
+        } else if (args.length == 2 && args[0].equals("mhSampleMatrices")) {
+            int maxDepth = new Integer(args[1]);
+            // write out the matrices of distances for a sample from
+            // the space of given depth, sampled by
+            // Metropolis-Hastings with selection
+            Sample sample = new Sample(maxDepth);
+            sample.writeMatrices(sample.sampleMetropolisHastings(10, 20, true, 10),
+                                 "mh_sample_depth_" + maxDepth, true);
             
         } else {
             System.out.println("Please read the source to see usage.");
