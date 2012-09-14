@@ -164,27 +164,56 @@ public class Sample {
     }
                 
 
-
-    // This does Metropolis-Hastings sampling as adapted for GP by
-    // Vanneschi (see Vanneschi PhD thesis available online, p 130).
-    // We run M-H multiple times, starting from the same "centre"
-    // node, then return a list of all individuals encountered. 
-    public ArrayList<String>
-        sampleMetropolisHastings
-        (int nsteps, int nindividuals,
-         boolean selection, int ntries) {
-
-        Tree gamma_0 = new Tree("x");
-        mutator.grow(gamma_0.getRoot(), maxDepth);
+    // Sample by random-walking. Aim is to collect a sample of size
+    // precisely nindividuals. Use multiple walks to do so if needed,
+    // each lasting up to nsteps.
+    public ArrayList<String> sampleRandomWalk
+        (int nsteps, int nindividuals, int ntries) {
 
         ArrayList<String> retval = new ArrayList<String>();
 
+        Tree gamma_0 = new Tree("x");
+        mutator.grow(gamma_0.getRoot(), maxDepth);
         retval.add(gamma_0.toString());
 
-        float fgamma_0 = 0.0f;
-        if (selection) {
-            fgamma_0 = (float) (gamma_0.fitness());
+        while (retval.size() < nindividuals) {
+            Tree gamma_i = gamma_0;
+
+            for (int j = 0; j < nsteps && retval.size() < nindividuals; j++) {
+
+                // Try up to ntries times to find an individual not
+                // already in the sample. If we have to give up, don't
+                // add anything on this iteration.
+                for (int k = 0; k < ntries; k++) {
+                    gamma_i = mutator.mutate(gamma_i);
+                    String s = gamma_i.toString();
+                    if (retval.indexOf(s) == -1) {
+                        retval.add(s);
+                        break;
+                    }
+                }
+            }
         }
+        return retval;
+    }
+
+
+    // This does Metropolis-Hastings sampling more or less as adapted
+    // for GP by Vanneschi (see Vanneschi PhD thesis available online
+    // [http://personal.disco.unimib.it/Vanneschi/thesis_vanneschi.pdf],
+    // p 130). We run M-H multiple times if needed, starting from the
+    // same "centre" node, until we have collected nindividuals, then
+    // return the list.
+    public ArrayList<String>
+        sampleMetropolisHastings
+        (int nsteps, int nindividuals, int ntries) {
+
+        ArrayList<String> retval = new ArrayList<String>();
+
+        Tree gamma_0 = new Tree("x");
+        mutator.grow(gamma_0.getRoot(), maxDepth);
+        float fgamma_0 = (float) (gamma_0.fitness());
+        retval.add(gamma_0.toString());
 
         while (retval.size() < nindividuals) {
             Tree gamma_i = gamma_0;
@@ -192,67 +221,52 @@ public class Sample {
 
             for (int j = 0; j < nsteps && retval.size() < nindividuals; j++) {
 
-                if (!selection) {
-                    // Try up to ntries times to find an individual
-                    // not already in the sample. If we have to give
-                    // up, don't add anything on this iteration.
-                    for (int k = 0; k < ntries; k++) {
-                        gamma_i = mutator.mutate(gamma_i);
-                        String s = gamma_i.toString();
-                        if (retval.indexOf(s) == -1) {
-                            retval.add(s);
-                            break;
-                        }
+                // Try up to ntries times to find a *better*
+                // individual not already in the sample. 
+                for (int k = 0; true; k++) {
+                    Tree delta = mutator.mutate(gamma_i);
+                    float fdelta = (float) delta.fitness();
+                    double alpha;
+                    // FIXME maximise should be passed-in as a
+                    // parameter according to the problem.
+                    boolean maximise = false;
+                    if (maximise) {
+                        alpha = min(1.0f, fdelta / fgamma_i);
+                    } else {
+                        alpha = min(1.0f, fgamma_i / fdelta);
                     }
-
-                } else {
-                    // Try up to ntries times to find a *better*
-                    // individual not already in the sample. 
-                    for (int k = 0; true; k++) {
-                        Tree delta = mutator.mutate(gamma_i);
-                        float fdelta = (float) delta.fitness();
-						double alpha;
-						// FIXME maximise should be passed-in as a
-						// parameter according to the problem.
-						boolean maximise = false;
-						if (maximise) {
-							alpha = min(1.0f, fdelta / fgamma_i);
-						} else {
-							alpha = min(1.0f, fgamma_i / fdelta);
-						}
-                        if (Double.isNaN(alpha) || alpha <= epsilon) {
-                            // It can happen. It's not worth worrying about.
-                            alpha = epsilon;
-                        }
-                        // System.out.println("fgamma_i = " + fgamma_i + " fdelta = " + fdelta + " alpha = " + alpha);
-                        if (rng.nextDouble() <= alpha) {
-                            String s = delta.toString();
-                            if (retval.indexOf(s) == -1) {
-                                // Success: accept the individual and
-                                // quit this k-loop
-                                /// System.out.println("success, accepting.");
-                                retval.add(s);
-                                gamma_i = delta;
-                                fgamma_i = fdelta;
-                                break;
-                            }
-                            // System.out.println("fitness ok, alpha ok, but ind already in sample");
-                        } else if (k > ntries) {
-                            // Failure: ran out of tries. Accept the
-                            // last individual only if it's not
-                            // already in the sample
-                            // System.out.println("failure, ran out of tries to find good ind");
-                            String s = delta.toString();
-                            if (retval.indexOf(s) == -1) {
-                                // System.out.println("but accepting, ind wasn't in sample");
-                                retval.add(s);
-                            }
-                            // Whether we accepted or not, quit this
-                            // k-loop.
+                    if (Double.isNaN(alpha) || alpha <= epsilon) {
+                        // It can happen. It's not worth worrying about.
+                        alpha = epsilon;
+                    }
+                    // System.out.println("fgamma_i = " + fgamma_i + " fdelta = " + fdelta + " alpha = " + alpha);
+                    if (rng.nextDouble() <= alpha) {
+                        String s = delta.toString();
+                        if (retval.indexOf(s) == -1) {
+                            // Success: accept the individual and
+                            // quit this k-loop
+                            /// System.out.println("success, accepting.");
+                            retval.add(s);
+                            gamma_i = delta;
+                            fgamma_i = fdelta;
                             break;
-                        } else {
-                            // System.out.println("didn't accept because of alpha, looping.");
                         }
+                        // System.out.println("fitness ok, alpha ok, but ind already in sample");
+                    } else if (k > ntries) {
+                        // Failure: ran out of tries. Accept the
+                        // last individual only if it's not
+                        // already in the sample
+                        // System.out.println("failure, ran out of tries to find good ind");
+                        String s = delta.toString();
+                        if (retval.indexOf(s) == -1) {
+                            // System.out.println("but accepting, ind wasn't in sample");
+                            retval.add(s);
+                        }
+                        // Whether we accepted or not, quit this
+                        // k-loop.
+                        break;
+                    } else {
+                        // System.out.println("didn't accept because of alpha, looping.");
                     }
                 }
             }
@@ -261,7 +275,9 @@ public class Sample {
         return retval;
     }
 
-    // Get every possible node (up to a given depth).
+    // Get every possible node (up to a given depth). See the python
+    // code python/RandomWalks/generate_trees.py for a more efficient
+    // way to just print them.
     public ArrayList<String> sampleComplete() {
 
         ArrayList<String> retval = new ArrayList<String>();
@@ -351,20 +367,18 @@ public class Sample {
         } else if (args.length == 2 && args[0].equals("rwSampleMatrices")) {
             int maxDepth = new Integer(args[1]);
             // write out the matrices of distances for a sample from
-            // the space of given depth, sampled by
-            // Metropolis-Hastings but *without* selection, so
-            // effectively just random walk.
+            // the space of given depth, sampled by random walk.
             Sample sample = new Sample(maxDepth);
-            sample.writeMatrices(sample.sampleMetropolisHastings(10, 20, false, 10),
+            sample.writeMatrices(sample.sampleRandomWalk(10, 20, 10),
                                  "rw_sample_depth_" + maxDepth, true);
             
         } else if (args.length == 2 && args[0].equals("mhSampleMatrices")) {
             int maxDepth = new Integer(args[1]);
             // write out the matrices of distances for a sample from
             // the space of given depth, sampled by
-            // Metropolis-Hastings with selection
+            // Metropolis-Hastings
             Sample sample = new Sample(maxDepth);
-            sample.writeMatrices(sample.sampleMetropolisHastings(10, 20, true, 10),
+            sample.writeMatrices(sample.sampleMetropolisHastings(10, 20, 10),
                                  "mh_sample_depth_" + maxDepth, true);
             
         } else {
