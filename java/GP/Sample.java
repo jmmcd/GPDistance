@@ -145,7 +145,8 @@ public class Sample {
     // function doesn't collect a sample of individuals. It just
     // performs walks and saves the number of steps between pairs of
     // individuals. So it aims to estimate FMPT by simulation rather
-    // than exact methods on a sample from the space.
+    // than exact methods on a sample from the space. FIXME should aim
+    // to test this on a known space, eg the 1298-space.
     public HashMap<String, HashMap<String, Double>>
         randomWalking(ArrayList<String> ofInterest) {
 
@@ -178,7 +179,9 @@ public class Sample {
             walkLengths.put(s, tmp);
         }
 
-        // start with a random node
+        // start with a random node FIXME should start at one of the
+        // individuals of interest -- no reason to start anywhere
+        // else.
         Tree current = new Tree("x");
         mutator.grow(current.getRoot(), maxDepth);
         String cs = current.toString();
