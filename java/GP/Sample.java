@@ -373,9 +373,9 @@ public class Sample {
     }
 
 
-    // A central method: give two trees (as strings), calculate
-    // syntactic and operator-based distances, and return them
-    // in a hash.
+    // A central method: given two trees (as strings), calculate
+    // syntactic and operator-based distances, and return them in a
+    // hash.
     public HashMap<String, Double> getDistances(String s, String t) {
 
         HashMap<String, Double> retval = new HashMap<String, Double>();

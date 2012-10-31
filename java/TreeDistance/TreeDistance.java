@@ -16,6 +16,29 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Arrays;
 
+/*
+ * RTED is COPYRIGHT 2012 Mateusz Pawlik and Nikolaus Augsten
+ * 
+ * RTED 1.1 downloaded from
+ * [http://www.inf.unibz.it/dis/projects/tree-distance-repository]
+ *
+ * Licence (from RTED homepage): Our program is free to redistribute
+ * and/or modify under the terms of the GNU Affero General Public
+ * License [http://www.gnu.org/licenses/].
+ *
+ * Citing RTED (from RTED homepage): If you want to refer to RTED in a
+ * publication, please cite the following PVLDB paper.
+ * 
+ * M. Pawlik and N. Augsten. RTED: A Robust Algorithm for the Tree
+ * Edit Distance. PVLDB 5(4):334–345, 2011.
+ */
+
+// util and distance are the unfortunate package names used by the
+// RTED library.
+import util.LblTree;
+import distance.RTED_InfoTree_Opt;
+
+
 public class TreeDistance {
 
     // Normalised Compression Distance
@@ -113,57 +136,6 @@ public class TreeDistance {
     // }
 
 
-
-    // // Tree Edit Distance
-    // /////////////////////
-
-    // /**
-    //  * @param s1, s2: Strings to be interpreted as lisp-style
-    //  * s-expressions representing trees.
-    //  */
-    // public static double getTreeEditDistance(String s1, String s2) {
-    //     CreateTreeHelper cth = new CreateTreeHelper();
-
-    //     GPTree gpt1 = GPTree.makeTreeFromSExpression(s1);
-    //     BasicTree bt1 = cth.makeTreeFromECJGPTree(gpt1);
-    //     GPTree gpt2 = GPTree.makeTreeFromSExpression(s2);
-    //     BasicTree bt2 = cth.makeTreeFromECJGPTree(gpt2);
-
-    //     ComparisonZhangShasha treeCorrector = new ComparisonZhangShasha();
-    //     OpsZhangShasha costs = new OpsZhangShasha();
-    //     Transformation transform = treeCorrector.findDistance(bt1, bt2, costs);
-    //     return transform.getCost();
-    // }
-
-    // /**
-    //  * @param i1, i2: GPIndividuals
-    //  */
-    // public static double getTreeEditDistance(GPIndividual i1, GPIndividual i2) {
-    //     CreateTreeHelper cth = new CreateTreeHelper();
-
-    //     BasicTree bt1 = cth.makeTreeFromECJGPTree(i1.trees[0]);
-    //     BasicTree bt2 = cth.makeTreeFromECJGPTree(i2.trees[1]);
-
-    //     ComparisonZhangShasha treeCorrector = new ComparisonZhangShasha();
-    //     OpsZhangShasha costs = new OpsZhangShasha();
-    //     Transformation transform = treeCorrector.findDistance(bt1, bt2, costs);
-    //     return transform.getCost();
-    // }
-
-    /**
-     * @param i1, i2: Trees
-     */
-    public static double getTreeEditDistance(Tree i1, Tree i2) {
-        CreateTreeHelper cth = new CreateTreeHelper();
-        BasicTree bt1 = cth.makeBasicTreeFromTree(i1);
-        BasicTree bt2 = cth.makeBasicTreeFromTree(i2);
-        ComparisonZhangShasha treeCorrector = new ComparisonZhangShasha();
-        OpsZhangShasha costs = new OpsZhangShasha();
-        Transformation transform = treeCorrector.findDistance(bt1, bt2, costs);
-        return transform.getCost();
-    }
-
-
     /**
      * @param i1, i2: Trees
      */
@@ -171,6 +143,45 @@ public class TreeDistance {
         return OverlapDistance.overlap(i1, i2);
     }
 
+
+    /**
+     * @param n: a Node. On first call, n is the root of a Tree. Then
+     * we recurse with n equal to each of the children.
+     *
+     * @return a tree in the format used by the RTED tree distance
+     * library.
+     */ 
+    public static LblTree lblTreeFromTree(Node n) {
+        int treeID = 0;
+        LblTree node = new LblTree(n.toString(), treeID);
+		for (Node child: n.children) {
+			node.add(lblTreeFromTree(child));
+		}
+		return node;
+    }
+
+
+    /**
+     * @param t1, t2: Trees. We'll convert them to LblTree format as
+     * used by RTED.
+     *
+     * This implementation uses the RTED library to calculate tree
+     * edit distance. It should be preferred because the other
+     * implementation could be flawed, see
+     * [https://github.com/irskep/zhang-shasha]
+     *
+     * @return the tree-edit distance, a nonnegative double value.
+     */
+    public static double getTreeEditDistance(Tree t1, Tree t2) {
+        LblTree lt1 = lblTreeFromTree(t1.getRoot());
+        LblTree lt2 = lblTreeFromTree(t2.getRoot());
+        // 1, 1, 1 indicate the insert, delete, edit costs
+		RTED_InfoTree_Opt rted = new RTED_InfoTree_Opt(1, 1, 1);
+        rted.init(lt1, lt2);
+        rted.computeOptimalStrategy();
+        return rted.nonNormalizedTreeDist();
+    }
+    
 
 	public static void main(String args[]) {
         Tree t = new Tree("(* (* x x) y (/ (+ x))");
@@ -185,4 +196,3 @@ public class TreeDistance {
 	}
 
 }
-
