@@ -14,10 +14,9 @@ types of distance:
   distance* (NCD). The Java implementation of the Zhang-Shasha
   tree-edit distance algorithm is Copyright (C) 2012 Mateusz Pawlik
   and Nikolaus Augsten (see
-  http://www.inf.unibz.it/dis/projects/tree-distance-repository). It
-  also uses a Java transliteration of the Clojure overlap distance by
-  Lee Spector (see
-  http://push.i3ci.hampshire.edu/2011/06/07/overlap/).
+  http://www.inf.unibz.it/dis/projects/tree-edit-distance). It also
+  uses a Java transliteration of the Clojure overlap distance by Lee
+  Spector (see http://push.i3ci.hampshire.edu/2011/06/07/overlap/).
 
 * Operator distances work by studying the transition probabilities
   between pairs of nodes via particular operators. We start with the
