@@ -89,7 +89,7 @@ def get_mfpt(x):
     x = np.matrix(x)
     x = np.array(ergodic.fmpt(x))
     set_self_transition_zero(x)
-    return x
+    return x.T
     
 def test_matrix_size(n):
     """Test how big the tm can be before get_mfpt becomes

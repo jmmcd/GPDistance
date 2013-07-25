@@ -81,8 +81,34 @@ def get_kendall_tau(x, y):
     # splat it on the terminal
     old = np.seterr(all='raise')
     try:
-        corr, p = scipy.stats.mstats.kendalltau(x, y)
+        corr, p = scipy.stats.kendalltau(x, y)
     except FloatingPointError:
+        corr, p = 0.0, 1.0
+    # restore old error settings
+    np.seterr(**old)
+    return corr, p
+
+def get_spearman_rho(x, y):
+    """Return Spearman's rho, a non-parametric test of association. If
+     one of the variables is constant, a FloatingPointError will
+     happen and we can just say that there was no association.
+     [http://en.wikipedia.org/wiki/Spearman's_rank_correlation_coefficient].
+     The reason for using this is that the usual Pearson's correlation
+     assumes normal distributions, which our distances certainly
+     aren't, and Kendall's tau is O(n^2), so unbearably slow."""
+
+    if "scipy" not in locals():
+        import scipy.stats
+    # Make sure we raise any error (so we can catch it), don't just
+    # splat it on the terminal. However we will ignore underflow
+    # because it seems to happen with every single one. Similar
+    # approach here:
+    # [https://code.google.com/p/wnd-charm/source/browse/pychrm/trunk/pychrm/FeatureSet.py?r=723]
+    old = np.seterr(all='raise', under='ignore')
+    try:
+        corr, p = scipy.stats.spearmanr(x, y)
+    except FloatingPointError:
+        print("FPE")
         corr, p = 0.0, 1.0
     # restore old error settings
     np.seterr(**old)
@@ -117,9 +143,10 @@ def make_correlation_table(codename, txt=""):
     d = {}
     array_len = -1
     for name in syntactic_distance_names + gold_names:
-        print("reading " + name)
-        d[name] = np.genfromtxt(codename + "/" + name + ".dat")
-        array_len = len(d[name])
+        # print("reading " + name)
+        m = np.genfromtxt(codename + "/" + name + ".dat")
+        d[name] = np.reshape(m, len(m)**2)
+        # array_len = len(d[name])
 
     # sample_positions = random.sample([(i, j)
     #                                   for i in range(array_len)
@@ -130,7 +157,8 @@ def make_correlation_table(codename, txt=""):
     def do_line(syn):
         line = syn.replace("_TP", r"$_{\mathrm{TP}}$")
         for gold in gold_names:
-            corr, p = get_kendall_tau(d[gold], d[syn])
+            # print("getting association between " + gold + " " + syn)
+            corr, p = get_spearman_rho(d[gold], d[syn])
             if p < 0.05:
                 sig = "*"
             else:
@@ -152,7 +180,7 @@ def make_correlation_table(codename, txt=""):
 if __name__ == "__main__":
     codename = sys.argv[1]
     
-    # txt = sys.argv[2]
-    # make_correlation_table(codename, txt)
+    txt = sys.argv[2]
+    make_correlation_table(codename, txt)
     
-    make_grid_plots(codename)
+    # make_grid_plots(codename)
