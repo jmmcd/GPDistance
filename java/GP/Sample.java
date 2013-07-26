@@ -483,4 +483,13 @@ public class Sample {
             System.out.println("Please read the source to see usage.");
         }
     }
+
+
+    // For each individual, calculate many mutations, and make an
+    // estimate of the transition probabilities -- is our TP right?
+
+    // somehow derive an estimate of FMPT for pairs of nodes and see
+    // if our FMPT is right
 }
+
+
