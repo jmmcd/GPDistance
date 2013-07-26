@@ -535,7 +535,7 @@ public class Sample {
             // perform many mutations to estimate transition probabilities
             Sample sample = new Sample(maxDepth);
             sample.sampleOneStepProbabilities(sample.sampleComplete(),
-                                              20,
+                                              100,
                                               "../results/depth_" + maxDepth + "/TP_sampled.dat"
                                               );
             

@@ -179,6 +179,25 @@ def make_correlation_table(codename, txt=""):
 \end{table}""")
 
 
+def compare_sampled_v_calculated(codename):
+    if "scipy" not in locals():
+        import scipy.stats
+    
+    stp = np.genfromtxt(codename + "/TP_sampled.dat")
+    tp = np.genfromtxt(codename + "/TP.dat")
+    stpr = stp.reshape(len(stp)**2)
+    tpr = tp.reshape(len(tp)**2)
+    corr, p = scipy.stats.pearsonr(tpr, stpr)
+    print("Pearson R correlation " + str(corr))
+    print("p-value " + str(p))
+    corr, p = scipy.stats.kendalltau(tpr, stpr)
+    print("Kendall tau correlation " + str(corr))
+    print("p-value " + str(p))
+    corr, p = scipy.stats.spearmanr(tpr, stpr)
+    print("Spearman rho correlation " + str(corr))
+    print("p-value " + str(p))
+    
+
 def write_steady_state(codename):
     """Read in a TP matrix given a codename. Use ergodic.steady_state
     to calculate the long-run steady-state, which is a vector
@@ -191,13 +210,18 @@ def write_steady_state(codename):
     names = map(lambda x: x.strip(), names)
     tp = np.genfromtxt(codename + "/TP.dat")
     ss = ergodic.steady_state(np.matrix(tp))
-    ss = np.real(ss)
-    print("Stddev of steady-state for codename " + codename + ": ")
+    ss = np.real(ss) # discard zero imaginary parts
+    print("Stddev of steady-state for " + codename + ": ")
     print(np.std(ss))
-    fig = plt.figure(figsize=(4, 3))
+    print("Sum of steady-state for " + codename + ": ")
+    print(np.sum(ss))
+    fig = plt.figure(figsize=(6.5, 3.5))
     ax = fig.add_subplot(1, 1, 1)
+    ax.set_yscale('log')
+    offset = int(log(len(ss), 2)) + 1
+    ax.set_xlim((-offset, len(ss)-1+offset))
+    plt.ylabel("Log(steady-state probability)")
     ax.plot(ss)
-    ax.set_ylabel('test')
     ax.set_xticklabels([], [])
     filename = codename + "/steady_state.dat"
     np.savetxt(filename, ss)
@@ -215,3 +239,4 @@ if __name__ == "__main__":
     # make_grid_plots(codename)
     
     write_steady_state(codename)
+    # compare_sampled_v_calculated(codename)

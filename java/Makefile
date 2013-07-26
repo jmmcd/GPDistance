@@ -36,4 +36,4 @@ randomWalkingDepth6:
 	java -cp ${cp} GP.Sample randomWalking 6
 
 sampleOneStepProbabilities:
-	java -cp ${cp} GP.Sample sampleOneStepProbabilities 2
+	java -cp ${cp} GP.Sample sampleOneStepProbabilities 1
