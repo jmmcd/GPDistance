@@ -190,11 +190,11 @@ def compare_sampled_v_calculated(codename):
     corr, p = scipy.stats.pearsonr(tpr, stpr)
     print("Pearson R correlation " + str(corr))
     print("p-value " + str(p))
-    corr, p = scipy.stats.kendalltau(tpr, stpr)
-    print("Kendall tau correlation " + str(corr))
-    print("p-value " + str(p))
     corr, p = scipy.stats.spearmanr(tpr, stpr)
     print("Spearman rho correlation " + str(corr))
+    print("p-value " + str(p))
+    corr, p = scipy.stats.kendalltau(tpr, stpr)
+    print("Kendall tau correlation " + str(corr))
     print("p-value " + str(p))
     
 
@@ -238,5 +238,5 @@ if __name__ == "__main__":
     
     # make_grid_plots(codename)
     
-    write_steady_state(codename)
-    # compare_sampled_v_calculated(codename)
+    # write_steady_state(codename)
+    compare_sampled_v_calculated(codename)
