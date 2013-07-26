@@ -15,3 +15,6 @@ rwSampleDepth6:
 
 mhSampleDepth6:
 	cd RandomWalks && ./random_walks.py ../../results/mh_sample_depth_6/
+
+sampleOneStepProbabilities:
+	echo "No python function here yet"

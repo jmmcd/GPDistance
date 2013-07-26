@@ -139,7 +139,58 @@ public class Sample {
             }
         }
         return retval;
-    }        
+    }
+
+
+    // TODO alternative methods of deriving an estimate of FMPT for
+    // pairs of nodes to confirm the FMPT calculations?
+    
+
+    // For each individual, calculate many mutations, and make an
+    // estimate of the transition probabilities
+    public void sampleOneStepProbabilities(ArrayList<String> trees,
+                                                        int n,
+                                                        String filename) {
+        try {
+            FileWriter file = new FileWriter(filename);
+            for (String srcS: trees) {
+                System.out.println("Working on " + srcS + " (" + trees.indexOf(srcS) + " of " + trees.size() + ")");
+                // make a zero array to hold values
+                float[] counts = new float[trees.size()];
+                for (int i = 0; i < counts.length; i++) {
+                    counts[i] = 0;
+                }
+                Tree src = new Tree(srcS);
+                // perform many mutations and see where they go
+                for (int i = 0; i < n * trees.size(); i++) {
+                    // mutate src
+                    Tree dest = mutator.mutate(src);
+                    String destS = dest.toString();
+                    // find new ind in the list
+                    int idx = trees.indexOf(destS);
+                    // +1 to new index
+                    counts[idx]++;
+                }
+                // write normalised counts
+                float sum = 0.0f;
+                for (int i = 0; i < trees.size(); i++) {
+                    sum += counts[i];
+                }
+                for (int i = 0; i < trees.size(); i++) {
+                    file.write(counts[i] / sum + " ");
+                }
+                // write a newline
+                file.write("\n");
+            }
+
+            // close file
+            file.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return;
+    }
+    
 
     // Estimate the length of a random walk by simulation. This
     // function doesn't collect a sample of individuals. It just
@@ -478,18 +529,20 @@ public class Sample {
             sample.writeMatrices(ofInterest,
                                  "random_walking_" + maxDepth,
                                  true, hshsali);
+
+        } else if (args.length == 2 && args[0].equals("sampleOneStepProbabilities")) {
+            int maxDepth = new Integer(args[1]);
+            // perform many mutations to estimate transition probabilities
+            Sample sample = new Sample(maxDepth);
+            sample.sampleOneStepProbabilities(sample.sampleComplete(),
+                                              20,
+                                              "../results/depth_" + maxDepth + "/TP_sampled.dat"
+                                              );
             
         } else {
             System.out.println("Please read the source to see usage.");
         }
     }
-
-
-    // For each individual, calculate many mutations, and make an
-    // estimate of the transition probabilities -- is our TP right?
-
-    // somehow derive an estimate of FMPT for pairs of nodes and see
-    // if our FMPT is right
 }
 
 

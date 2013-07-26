@@ -178,11 +178,40 @@ def make_correlation_table(codename, txt=""):
     print(r"""\end{tabular}
 \end{table}""")
 
+
+def write_steady_state(codename):
+    """Read in a TP matrix given a codename. Use ergodic.steady_state
+    to calculate the long-run steady-state, which is a vector
+    representing how long the system will spend in each state in the
+    long run. If not uniform, that is a bias imposed by the operator
+    on the system. Write it out and plot it. Calculate the stddev of
+    the steady-state as well."""
+    import ergodic
+    names = open(codename + "/all_trees.dat").read().strip().split("\n")
+    names = map(lambda x: x.strip(), names)
+    tp = np.genfromtxt(codename + "/TP.dat")
+    ss = ergodic.steady_state(np.matrix(tp))
+    ss = np.real(ss)
+    print("Stddev of steady-state for codename " + codename + ": ")
+    print(np.std(ss))
+    fig = plt.figure(figsize=(4, 3))
+    ax = fig.add_subplot(1, 1, 1)
+    ax.plot(ss)
+    ax.set_ylabel('test')
+    ax.set_xticklabels([], [])
+    filename = codename + "/steady_state.dat"
+    np.savetxt(filename, ss)
+    filename = codename + "/steady_state"
+    fig.savefig(filename + ".pdf")
+    fig.savefig(filename + ".png")
+    
+
 if __name__ == "__main__":
     codename = sys.argv[1]
     
-    txt = sys.argv[2]
-    make_correlation_table(codename, txt)
+    # txt = sys.argv[2]
+    # make_correlation_table(codename, txt)
     
     # make_grid_plots(codename)
     
+    write_steady_state(codename)

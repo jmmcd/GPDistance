@@ -32,10 +32,14 @@ types of distance:
 Build
 -----
 
-You need to get JGraphT and JScheme libraries (in fact, they're only
-needed for peripheral functionality, but I haven't tried to remove the
-dependency yet). They're easily available online. Copy them to
-java/libraries.
+You need to get the JGraphT and JScheme libraries (in fact, they're
+only needed for peripheral functionality, but I haven't tried to
+remove the dependency yet) and the RTED library (which is used for
+core funcationality). Download and copy them to java/libraries:
+
+* http://sourceforge.net/projects/jgrapht/?source=dlp
+* http://sourceforge.net/projects/jscheme/?source=dlp
+* http://www.inf.unibz.it/dis/projects/tree-edit-distance/download.php
 
 Then there's a Makefile. Try `make` to compile everything. It calls
 into Makefiles in sub-directories to compile them. The Python code

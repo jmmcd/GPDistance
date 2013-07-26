@@ -241,7 +241,6 @@ def generate_ga_tm(codename, pmut=None):
     np.savetxt(outfilename, tm)
     outfilename = codename + "/Hamming.dat"
     np.savetxt(outfilename, hm)
-
     
 if __name__ == "__main__":
     codename = sys.argv[1]
