@@ -73,6 +73,8 @@ public class Language {
             }
         }
 
+        Collections.sort(functions);
+        Collections.sort(terminals);
         F = functions.size();
         T = terminals.size();
 

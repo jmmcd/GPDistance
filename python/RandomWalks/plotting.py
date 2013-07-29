@@ -83,7 +83,9 @@ def get_kendall_tau(x, y):
     old = np.seterr(all='raise')
     try:
         corr, p = scipy.stats.kendalltau(x, y)
-    except FloatingPointError:
+    except (FloatingPointError, TypeError):
+        # TypeError can arise in Kendall tau when both x and y are
+        # constant
         corr, p = 0.0, 1.0
     # restore old error settings
     np.seterr(**old)
@@ -109,13 +111,32 @@ def get_spearman_rho(x, y):
     try:
         corr, p = scipy.stats.spearmanr(x, y)
     except FloatingPointError:
-        print("FPE")
         corr, p = 0.0, 1.0
     # restore old error settings
     np.seterr(**old)
     return corr, p
 
-def make_correlation_table(codename, txt=""):
+def get_pearson_r(x, y):
+    """Return Pearson's R, the most common test of correlation, which
+     assumes the variables are each normally distributed. If one of
+     the variables is constant, a FloatingPointError will happen and
+     we can just say that there was no association."""
+
+    if "scipy" not in locals():
+        import scipy.stats
+    # Make sure we raise any error (so we can catch it), don't just
+    # splat it on the terminal. 
+    old = np.seterr(all='raise')
+    try:
+        corr, p = scipy.stats.pearsonr(x, y)
+    except FloatingPointError:
+        corr, p = 0.0, 1.0
+    # restore old error settings
+    np.seterr(**old)
+    return corr, p
+
+def make_correlation_tables(codename, txt=""):
+
     # gp distances
     syntactic_distance_names = [
         "NCD", "FVD",
@@ -131,15 +152,6 @@ def make_correlation_table(codename, txt=""):
             "Hamming"
         ]
 
-    print(r"""\begin{table}
-\centering
-\caption{Correlations between distance measures: """ + txt)
-    print(r"""\label{tab:correlationresults_""" + os.path.basename(codename) + r"}}")
-    print(r"""\begin{tabular}{l|l|l|l|l}
- & D$_{\mathrm{TP}}$ & MFPT & SP & STEPS \\
-\hline
-\hline""")
-
     gold_names = ["D_TP", "MFPT", "SP", "STEPS"]
     d = {}
     array_len = -1
@@ -149,35 +161,60 @@ def make_correlation_table(codename, txt=""):
         d[name] = np.reshape(m, len(m)**2)
         # array_len = len(d[name])
 
-    # sample_positions = random.sample([(i, j)
-    #                                   for i in range(array_len)
-    #                                   for j in range(array_len)], 1000)
-    # def sample_from(d):
-    #     return np.array([d[i][j] for i, j in sample_positions])
-
     def do_line(syn):
         line = syn.replace("_TP", r"$_{\mathrm{TP}}$")
         for gold in gold_names:
-            # print("getting association between " + gold + " " + syn)
-            corr, p = get_spearman_rho(d[gold], d[syn])
+            print("getting association between " + gold + " " + syn)
+            if corr_type == "spearmanrho":
+                corr, p = get_spearman_rho(d[gold], d[syn])
+            elif corr_type == "kendalltau":
+                corr, p = get_kendall_tau(d[gold], d[syn])
+            elif corr_type == "pearsonr":
+                corr, p = get_pearson_r(d[gold], d[syn])
+            else:
+                print("Unknown correlation type " + corr_type)
             if p < 0.05:
                 sig = "*"
             else:
                 sig = " "
             line += r" & {0:1.2f} \hfill {1} ".format(corr, sig)
         line += r"\\"
-        print(line)
+        f.write(line)
         
-    for syn in syntactic_distance_names:
-        do_line(syn)
-    print(r"""\hline
- \hline""")
-    for gold in gold_names:
-        do_line(gold)
+    for corr_type in ["spearmanrho", "pearsonr", "kendalltau"]:
+        if corr_type == "kendalltau" and len(d["STEPS"]) > 100:
+            print("Omitting Kendall tau because it is infeasible for large matrices")
+            continue
+        filename = codename + "/correlation_table_" + corr_type + ".tex"
+        f = open(filename, "w")
 
-    print(r"""\end{tabular}
-\end{table}""")
+        f.write(r"""\begin{table}
+\centering
+\caption{Correlations between distance measures """)
+        if corr_type == "spearmanrho":
+            f.write("using Spearman's rho: ")
+        elif corr_type == "pearsonr":
+            f.write("using Pearson's R: ")
+        elif corr_type == "kendalltau":
+            f.write("using Kendall's tau: ")
+        f.write(txt)
+        f.write(r"""\label{tab:correlationresults_""" + os.path.basename(codename) + r"}}")
+        f.write(r"""\begin{tabular}{l|l|l|l|l}
+     & D$_{\mathrm{TP}}$ & MFPT & SP & STEPS \\
+\hline
+\hline""")
 
+        for syn in syntactic_distance_names:
+            do_line(syn)
+        f.write(r"""\hline
+     \hline""")
+        for gold in gold_names:
+            do_line(gold)
+
+        f.write(r"""\end{tabular}
+    \end{table}""")
+
+    f.close()
 
 def compare_sampled_v_calculated(codename):
     if "scipy" not in locals():
@@ -193,9 +230,12 @@ def compare_sampled_v_calculated(codename):
     corr, p = scipy.stats.spearmanr(tpr, stpr)
     print("Spearman rho correlation " + str(corr))
     print("p-value " + str(p))
-    corr, p = scipy.stats.kendalltau(tpr, stpr)
-    print("Kendall tau correlation " + str(corr))
-    print("p-value " + str(p))
+    if len(stpr) < 1000:
+        corr, p = scipy.stats.kendalltau(tpr, stpr)
+        print("Kendall tau correlation " + str(corr))
+        print("p-value " + str(p))
+    else:
+        print("Omitting Kendall tau because it is infeasible for large matrices")
     
 
 def write_steady_state(codename):
@@ -231,12 +271,15 @@ def write_steady_state(codename):
     
 
 if __name__ == "__main__":
-    codename = sys.argv[1]
-    
-    # txt = sys.argv[2]
-    # make_correlation_table(codename, txt)
-    
-    # make_grid_plots(codename)
-    
-    # write_steady_state(codename)
-    compare_sampled_v_calculated(codename)
+    cmd = sys.argv[1]
+    codename = sys.argv[2]
+
+    if cmd == "compareTPCalculatedVSampled":
+        compare_sampled_v_calculated(codename)
+    elif cmd == "makeCorrelationTable":
+        txt = sys.argv[3]
+        make_correlation_tables(codename, txt)
+    elif cmd == "makeGridPlots": 
+        make_grid_plots(codename)
+    elif cmd == "writeSteadyState":
+        write_steady_state(codename)

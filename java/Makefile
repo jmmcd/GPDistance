@@ -18,10 +18,10 @@ testdistances:
 	java -cp ${cp} TreeDistance.TreeDistance
 
 completeSpaceDepth1:
-	java -cp ${cp} GP.AllTrees 1
+	java -cp ${cp} GP.AllTrees 1 | grep -v java | grep -v Number > ../results/depth_1/all_trees.dat
 
 completeSpaceDepth2:
-	java -cp ${cp} GP.AllTrees 2
+	java -cp ${cp} GP.AllTrees 2 | grep -v java | grep -v Number > ../results/depth_2/all_trees.dat
 
 uniformSampleDepth6:
 	java -cp ${cp} GP.Sample uniformSampleMatrices 6 1000
@@ -35,5 +35,8 @@ mhSampleDepth6:
 randomWalkingDepth6:
 	java -cp ${cp} GP.Sample randomWalking 6
 
-sampleOneStepProbabilities:
+sampleOneStepProbabilitiesDepth1:
 	java -cp ${cp} GP.Sample sampleOneStepProbabilities 1
+
+sampleOneStepProbabilitiesDepth2:
+	java -cp ${cp} GP.Sample sampleOneStepProbabilities 2
