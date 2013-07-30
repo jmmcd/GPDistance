@@ -251,17 +251,18 @@ def write_steady_state(codename):
     representing how long the system will spend in each state in the
     long run. If not uniform, that is a bias imposed by the operator
     on the system. Write it out and plot it. Calculate the stddev of
-    the steady-state as well."""
+    the steady-state as well, and (why not) the stddev of the TP
+    matrix as well."""
     import ergodic
     names = open(codename + "/all_trees.dat").read().strip().split("\n")
     names = map(lambda x: x.strip(), names)
     tp = np.genfromtxt(codename + "/TP.dat")
     ss = ergodic.steady_state(np.matrix(tp))
     ss = np.real(ss) # discard zero imaginary parts
-    print("Stddev of steady-state for " + codename + ": ")
-    print(np.std(ss))
-    print("Sum of steady-state for " + codename + ": ")
-    print(np.sum(ss))
+    s = ("Stddev " + str(np.std(ss)) + ". ")
+    open(codename + "/steady_state.tex", "w").write(s)
+    s = ("Stddev " + str(np.std(tp)) + ". ")
+    open(codename + "/tp_stddev.tex", "w").write(s)
     fig = plt.figure(figsize=(6.5, 3.5))
     ax = fig.add_subplot(1, 1, 1)
     ax.set_yscale('log')
