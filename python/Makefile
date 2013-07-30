@@ -8,10 +8,10 @@ completeMatricesDepth2:
 	cd RandomWalks && ./random_walks.py ../../results/depth_2/
 
 compareTPCalculatedVSampledDepth1:
-	cd RandomWalks && ./plotting.py compareTPCalculatedVSampled ../../results/depth_1 > ../../results/depth_1/compare_TP_calculated_v_sampled.txt
+	cd RandomWalks && ./plotting.py compareTPCalculatedVSampled ../../results/depth_1
 
 compareTPCalculatedVSampledDepth2:
-	cd RandomWalks && ./plotting.py compareTPCalculatedVSampled ../../results/depth_2 > ../../results/depth_2/compare_TP_calculated_v_sampled.txt
+	cd RandomWalks && ./plotting.py compareTPCalculatedVSampled ../../results/depth_2
 
 writeSteadyStateDepth1:
 	cd RandomWalks && ./plotting.py writeSteadyState ../../results/depth_1

@@ -154,12 +154,10 @@ def make_correlation_tables(codename, txt=""):
 
     gold_names = ["D_TP", "MFPT", "SP", "STEPS"]
     d = {}
-    array_len = -1
     for name in syntactic_distance_names + gold_names:
         # print("reading " + name)
         m = np.genfromtxt(codename + "/" + name + ".dat")
-        d[name] = np.reshape(m, len(m)**2)
-        # array_len = len(d[name])
+        d[name] = m.reshape(len(m)**2)
 
     def do_line(syn):
         line = syn.replace("_TP", r"$_{\mathrm{TP}}$")
@@ -179,10 +177,10 @@ def make_correlation_tables(codename, txt=""):
                 sig = " "
             line += r" & {0:1.2f} \hfill {1} ".format(corr, sig)
         line += r"\\"
-        f.write(line)
+        f.write(line + "\n")
         
     for corr_type in ["spearmanrho", "pearsonr", "kendalltau"]:
-        if corr_type == "kendalltau" and len(d["STEPS"]) > 100:
+        if corr_type == "kendalltau" and len(d["STEPS"]) > 1000:
             print("Omitting Kendall tau because it is infeasible for large matrices")
             continue
         filename = codename + "/correlation_table_" + corr_type + ".tex"
@@ -198,16 +196,18 @@ def make_correlation_tables(codename, txt=""):
         elif corr_type == "kendalltau":
             f.write("using Kendall's tau: ")
         f.write(txt)
-        f.write(r"""\label{tab:correlationresults_""" + os.path.basename(codename) + r"}}")
+        f.write(r"""\label{tab:correlationresults_""" + os.path.basename(codename) + "}}\n")
         f.write(r"""\begin{tabular}{l|l|l|l|l}
      & D$_{\mathrm{TP}}$ & MFPT & SP & STEPS \\
 \hline
-\hline""")
+\hline
+""")
 
         for syn in syntactic_distance_names:
             do_line(syn)
         f.write(r"""\hline
-     \hline""")
+     \hline
+""")
         for gold in gold_names:
             do_line(gold)
 
@@ -221,22 +221,25 @@ def compare_sampled_v_calculated(codename):
         import scipy.stats
     
     stp = np.genfromtxt(codename + "/TP_sampled.dat")
+    stp = stp.reshape(len(stp)**2)
     tp = np.genfromtxt(codename + "/TP.dat")
-    stpr = stp.reshape(len(stp)**2)
-    tpr = tp.reshape(len(tp)**2)
-    corr, p = scipy.stats.pearsonr(tpr, stpr)
-    print("Pearson R correlation " + str(corr))
-    print("p-value " + str(p))
-    corr, p = scipy.stats.spearmanr(tpr, stpr)
-    print("Spearman rho correlation " + str(corr))
-    print("p-value " + str(p))
-    if len(stpr) < 1000:
-        corr, p = scipy.stats.kendalltau(tpr, stpr)
-        print("Kendall tau correlation " + str(corr))
-        print("p-value " + str(p))
+    tp = tp.reshape(len(tp)**2)
+
+    filename = codename + "/compare_TP_calculated_v_sampled.tex"
+    f = open(filename, "w")
+    corr, p = scipy.stats.pearsonr(tp, stp)
+    f.write("Pearson R correlation " + str(corr) + "; ")
+    f.write("p-value " + str(p) + ". ")
+    corr, p = scipy.stats.spearmanr(tp, stp)
+    f.write("Spearman rho correlation " + str(corr) + "; ")
+    f.write("p-value " + str(p) + ". ")
+    if len(stp) < 1000:
+        corr, p = scipy.stats.kendalltau(tp, stp)
+        f.write("Kendall tau correlation " + str(corr) + "; ")
+        f.write("p-value " + str(p) + ". ")
     else:
-        print("Omitting Kendall tau because it is infeasible for large matrices")
-    
+        f.write("Omitting Kendall tau because it is infeasible for large matrices. ")
+    f.close()
 
 def write_steady_state(codename):
     """Read in a TP matrix given a codename. Use ergodic.steady_state
