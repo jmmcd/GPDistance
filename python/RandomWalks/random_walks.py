@@ -193,7 +193,7 @@ def read_and_get_dtp_mfpt_sp_steps(codename):
     outfilename = codename + "/D_TP.dat"
     np.savetxt(outfilename, d)
     
-    # This gets the first mean passage time, ie the expected length of
+    # This gets the mean first passage time, ie the expected length of
     # a random walk.
     f = get_mfpt(t)
     outfilename = codename + "/MFPT.dat"

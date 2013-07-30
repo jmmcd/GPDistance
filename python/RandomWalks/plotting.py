@@ -47,10 +47,14 @@ def make_grid(w, names, filename):
     # similar. matshow() internally scales the data so that the
     # smallest numbers go to black and largest to white.
 
-    fig = plt.figure(figsize=(25, 25))
+    if len(w) < 100:
+        figsize = (2, 2)
+    else:
+        figsize = (10, 10)
+    fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(1, 1, 1)
     ax.set_frame_on(False)
-    im = ax.matshow(w, cmap=cm.gray, interpolation="none")
+    im = ax.matshow(w, cmap=cm.gray, interpolation="nearest")
 
     if names:
         # Turn labels on
@@ -64,8 +68,8 @@ def make_grid(w, names, filename):
         ax.set_yticklabels([], [])
     
     ax.tick_params(length=0, pad=3.0)
-    fig.savefig(filename + ".pdf")
-    fig.savefig(filename + ".png")
+    fig.savefig(filename + ".pdf", dpi=100)
+    fig.savefig(filename + ".png", dpi=100)
 
 def get_kendall_tau(x, y):
     """Return Kendall's tau, a non-parametric test of association. If
@@ -203,16 +207,16 @@ def make_correlation_tables(codename, txt=""):
 \hline
 """)
 
-        for syn in syntactic_distance_names:
-            do_line(syn)
-        f.write(r"""\hline
-     \hline
-""")
         for gold in gold_names:
             do_line(gold)
+        f.write(r"""\hline
+\hline
+""")
+        for syn in syntactic_distance_names:
+            do_line(syn)
 
         f.write(r"""\end{tabular}
-    \end{table}""")
+\end{table}""")
 
     f.close()
 
