@@ -16,8 +16,13 @@ class MyLocator(mpl.ticker.IndexLocator):
     MAXTICKS=1500
 
 def make_grid_plots(codename):
-    names = open(codename + "/all_trees.dat").read().strip().split("\n")
-    names = map(lambda x: x.strip(), names)
+    if "depth" in codename:
+        names = open(codename + "/all_trees.dat").read().strip().split("\n")
+        names = map(lambda x: x.strip(), names)
+    else:
+        # Assume GA
+        length = int(codename.strip("/").split("_")[2])
+        names = [bin(i)[2:] for i in range(2**length)]
     
     # gp distances
     syntactic_distance_names = [
@@ -250,33 +255,59 @@ def write_steady_state(codename):
     to calculate the long-run steady-state, which is a vector
     representing how long the system will spend in each state in the
     long run. If not uniform, that is a bias imposed by the operator
-    on the system. Write it out and plot it. Calculate the stddev of
-    the steady-state as well, and (why not) the stddev of the TP
-    matrix as well."""
+    on the system. Write it out and plot it. Also calculate the
+    in-degree of each node, by summing columns. Plot that on the same
+    plot. Calculate the correlation between steady-state and
+    in-degree. Calculate the stddev of the steady-state as well, and
+    (why not) the stddev of the TP matrix as well."""
     import ergodic
-    names = open(codename + "/all_trees.dat").read().strip().split("\n")
-    names = map(lambda x: x.strip(), names)
+    if "scipy" not in locals():
+        import scipy.stats
     tp = np.genfromtxt(codename + "/TP.dat")
-    ss = ergodic.steady_state(np.matrix(tp))
+    ss = np.array(ergodic.steady_state(np.matrix(tp)))
     ss = np.real(ss) # discard zero imaginary parts
+    ss = ss.T[0] # not sure why it ends up with an extra unused dimension
     s = ("Stddev " + str(np.std(ss)) + ". ")
     open(codename + "/steady_state.tex", "w").write(s)
     s = ("Stddev " + str(np.std(tp)) + ". ")
     open(codename + "/tp_stddev.tex", "w").write(s)
+    cs = np.sum(tp, axis=0)
+    cs /= np.sum(cs)
+    s = ("Pearson correlation between steady-state vector "
+         + "and normalised in-degree vector"
+         + str(scipy.stats.pearsonr(ss, cs)) + ". ")
+    open(codename + "/in_degree.tex", "w").write(s)
+    
     fig = plt.figure(figsize=(6.5, 3.5))
     ax = fig.add_subplot(1, 1, 1)
     ax.set_yscale('log')
     offset = int(log(len(ss), 2)) + 1
     ax.set_xlim((-offset, len(ss)-1+offset))
-    plt.ylabel("Log(steady-state probability)")
-    ax.plot(ss)
+    plt.ylabel("Log-probability")
+    ax.plot(ss, label="Steady-state", lw=2)
+    ax.plot(cs, label="Normalised in-degree", lw=2)
     ax.set_xticklabels([], [])
+    if ("depth_1" in codename) or ("ga_length" in codename):
+        plt.legend(loc=3)
+    else:
+        plt.legend(loc=1)
     filename = codename + "/steady_state.dat"
     np.savetxt(filename, ss)
+    filename = codename + "/in_degree.dat"
+    np.savetxt(filename, cs)
     filename = codename + "/steady_state"
     fig.savefig(filename + ".pdf")
     fig.savefig(filename + ".png")
-    
+
+def write_symmetric_remoteness(codename):
+    """Read in the TP matrix and the MFPT one, and write out the
+    symmetric versions. Maybe do STEPS and SP also?"""
+    tp = np.genfromtxt(codename + "/TP.dat")
+    mfpt = np.genfromtxt(codename + "/MFPT.dat")
+    stp = 0.5 * (tp + tp.T)
+    ct = 0.5 * (mfpt + mfpt.T)
+    np.savetxt(codename + "/STP.dat", stp)
+    np.savetxt(codename + "/CT.dat", ct)
 
 if __name__ == "__main__":
     cmd = sys.argv[1]
@@ -291,3 +322,5 @@ if __name__ == "__main__":
         make_grid_plots(codename)
     elif cmd == "writeSteadyState":
         write_steady_state(codename)
+    elif cmd == "writeSymmetricRemoteness":
+        write_symmetric_remoteness(codename)

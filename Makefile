@@ -24,6 +24,13 @@ depth2:
 	cd python && make makeGridPlotsDepth2
 	cd python && make compareTPCalculatedVSampledDepth2
 
+ga_length4:
+	mkdir -p results/ga_length_4
+	cd python && make completeMatricesGALength4
+	cd python && make writeSteadyStateGALength4
+	cd python && make makeCorrelationTableGALength4
+	cd python && make makeGridPlotsGALength4
+
 completeMatricesDepth1:
 	cd java && make completeMatricesDepth1
 	cd python && make completeMatricesDepth1

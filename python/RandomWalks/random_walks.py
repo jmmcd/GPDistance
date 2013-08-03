@@ -222,7 +222,7 @@ def generate_ga_tm(codename, pmut=None):
     exactly one bitflip is performed per individual, rather than using
     a per-gene mutation probability."""
     
-    length = int(codename.split("_")[2])
+    length = int(codename.strip("/").split("_")[2])
     tm = np.zeros((2**length, 2**length))
     hm = np.zeros((2**length, 2**length))
     for i, indi in enumerate(itertools.product(*[(0, 1) for x in range(length)])):
