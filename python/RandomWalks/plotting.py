@@ -299,16 +299,6 @@ def write_steady_state(codename):
     fig.savefig(filename + ".pdf")
     fig.savefig(filename + ".png")
 
-def write_symmetric_remoteness(codename):
-    """Read in the TP matrix and the MFPT one, and write out the
-    symmetric versions. Maybe do STEPS and SP also?"""
-    tp = np.genfromtxt(codename + "/TP.dat")
-    mfpt = np.genfromtxt(codename + "/MFPT.dat")
-    stp = 0.5 * (tp + tp.T)
-    ct = 0.5 * (mfpt + mfpt.T)
-    np.savetxt(codename + "/STP.dat", stp)
-    np.savetxt(codename + "/CT.dat", ct)
-
 if __name__ == "__main__":
     cmd = sys.argv[1]
     codename = sys.argv[2]
@@ -322,5 +312,3 @@ if __name__ == "__main__":
         make_grid_plots(codename)
     elif cmd == "writeSteadyState":
         write_steady_state(codename)
-    elif cmd == "writeSymmetricRemoteness":
-        write_symmetric_remoteness(codename)

@@ -50,11 +50,11 @@ makeCorrelationTableGALength4:
 	cd RandomWalks && ./plotting.py makeCorrelationTable ../../results/ga_length_4 "GA Length 4"
 
 uniformSampleDepth6:
-	cd RandomWalks && ./random_walks.py ../../results/uniform_depth_6/
+	cd RandomWalks && ./random_walks.py graphDistances ../../results/uniform_depth_6/
 
 rwSampleDepth6:
-	cd RandomWalks && ./random_walks.py ../../results/rw_sample_depth_6/
+	cd RandomWalks && ./random_walks.py graphDistances ../../results/rw_sample_depth_6/
 
 mhSampleDepth6:
-	cd RandomWalks && ./random_walks.py ../../results/mh_sample_depth_6/
+	cd RandomWalks && ./random_walks.py graphDistances ../../results/mh_sample_depth_6/
 
