@@ -185,8 +185,9 @@ def write_symmetric_remoteness(codename):
     np.savetxt(codename + "/CT.dat", ct)
 
 def read_and_get_Von_Luxburg_approximations(codename):
+    # assumes TP and MFPT have been calculated and written out already
     t = read_transition_matrix(codename + "/TP.dat")
-
+    mfpt = np.genfromtxt(codename + "/MFPT.dat")
     ones = np.ones_like(t)
     n = t.shape[0]
     
@@ -196,8 +197,9 @@ def read_and_get_Von_Luxburg_approximations(codename):
     # transpose and repeat to get d_u
     d_u = d_v.T
     # vol(G) is sum of degrees, which we interpret in the direct case
-    # as sum of out-degrees; because weights are transition
-    # probabilities, each out-degree = 1
+    # as sum of out-degrees (which is anyway equal to sum of
+    # in-degrees); because weights are transition probabilities, each
+    # out-degree = 1; so vol(G) = n.
     vol_G = float(n)
     
     mfpt_vla = vol_G * 1.0 / d_v
@@ -210,6 +212,18 @@ def read_and_get_Von_Luxburg_approximations(codename):
     outfilename = codename + "/CT_VLA.dat"
     np.savetxt(outfilename, ct_vla)
 
+    R = mfpt / vol_G
+    S = R - d_u - d_v
+    # t is the adjacency matrix
+    t_diag = np.sum(t * np.eye(n)) * ones
+    t_ii = t_diag
+    t_jj = t_diag.T
+    u = 2 * t / (d_u * d_v) - t_ii / d_u**2  - t_jj / d_v**2
+    C_amp = S + u
+    set_self_transition_zero(C_amp)
+    outfilename = codename + "/C_amp.dat"
+    np.savetxt(outfilename, C_amp)
+    
 
 def Laplacian_matrix(A):
     """Copied from
@@ -235,10 +249,13 @@ array([[ 2., -1.,  0.,  0., -1.,  0.],
     return L
 
 def Yen_correction(m):
-    """Placeholder. From Von Luxburg et al."""
-    sigma = 0.5 # What value does Yen use?
+    """From Yen et al,
+    http://link.springer.com/content/pdf/10.1007%2F978-3-540-71701-0_117.pdf,
+    referred to by Von Luxburg et al."""
     L = np.linalg.pinv(Laplacian_matrix(m))
-    K_Yen = 1.0 / (1 + np.exp(-L/sigma))
+    sigma = np.std(L) # a normalising factor
+    a = 7.0 # The value used by Yen et al, determined experimentally
+    K_Yen = 1.0 / (1 + a * np.exp(-L / sigma))
     return K_Yen
 
 def Brand_correction(m):
@@ -257,16 +274,6 @@ def Brand_correction(m):
     K = 1/2.0 * (-R + 1./n * (sum_ik + sum_kj) - 1.0/(n*n) * sum_all)
     K_B = K / np.sqrt(Kii * Kjj) # (need to express KiiKjj as a matrix)
     return K_B
-    
-def Von_Luxburg_correction(w):
-    """Placeholder. From Von Luxburg et al."""
-    # w is the adjacency matrix
-    S = R - d_u - d_v
-    # how to formulate in matrix terms?
-    u = 2 * w / (d_u * d_v) - w_ii / d_u^2  - w_jj / d_j^2
-    C_amp = S + u
-    set_self_transition_zero(C_amp)
-    return C_amp
     
 def read_and_get_dtp_mfpt_sp_steps(codename):
 
