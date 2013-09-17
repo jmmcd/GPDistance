@@ -3,15 +3,12 @@ all:
 
 completeMatricesDepth1:
 	cd RandomWalks && ./random_walks.py ../../results/depth_1/
-	cd RandomWalks && ./plotting.py "writeSymmetricRemoteness" ../../results/depth_1/
 
 completeMatricesDepth2:
 	cd RandomWalks && ./random_walks.py ../../results/depth_2/
-	cd RandomWalks && ./plotting.py "writeSymmetricRemoteness" ../../results/depth_2/
 
 completeMatricesGALength4::
 	cd RandomWalks && ./random_walks.py ../../results/ga_length_4/
-	cd RandomWalks && ./plotting.py "writeSymmetricRemoteness" ../../results/ga_length_4/
 
 compareTPCalculatedVSampledDepth1:
 	cd RandomWalks && ./plotting.py compareTPCalculatedVSampled ../../results/depth_1

@@ -4,6 +4,7 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+from sklearn.manifold import MDS
 import numpy as np
 from matplotlib.ticker import FuncFormatter, MaxNLocator, IndexLocator
 import sys
@@ -14,6 +15,8 @@ import random
 # MAXTICKS is 1000 in IndexLocator
 class MyLocator(mpl.ticker.IndexLocator):
     MAXTICKS=1500
+
+gold_names = ["D_TP", "STP", "MFPT", "SP", "STEPS", "CT"]
 
 def make_grid_plots(codename):
     if "depth" in codename:
@@ -38,9 +41,9 @@ def make_grid_plots(codename):
         syntactic_distance_names = [
             "Hamming"
         ]
-    gold_names = ["D_TP", "MFPT", "SP", "STEPS"]
     
     for name in gold_names + syntactic_distance_names:
+        # if name not in ("OVD", "TAD0"): continue
         w = np.genfromtxt(codename + "/" + name + ".dat")
         assert(len(w) == len(names))
         make_grid(w, False, codename + "/" + name)
@@ -52,15 +55,26 @@ def make_grid(w, names, filename):
     # similar. matshow() internally scales the data so that the
     # smallest numbers go to black and largest to white.
 
-    if len(w) < 100:
-        figsize = (2, 2)
-    else:
-        figsize = (10, 10)
+    # A uniform array will cause a "RuntimeWarning: invalid value
+    # encountered in divide" when calculating the colorbar. So ignore
+    # that.
+    old = np.seterr(invalid='ignore')
+
+    # Can put NaN on the diagonal to avoid plotting it -- makes a bit
+    # more space available for other data. But misleading.
+    
+    # w += np.diag(np.ones(len(w)) * np.nan)
+
+    figsize = (10, 10)
     fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(1, 1, 1)
-    ax.set_frame_on(False)
+    # ax.set_frame_on(False)
+    # consider other colour maps: cm.gray_r for reversed, autumn, hot,
+    # gist_earth, copper, ocean, some others, or a custom one for
+    # nicer images (not for publication, maybe). 
     im = ax.matshow(w, cmap=cm.gray, interpolation="nearest")
-
+    fig.colorbar(im, shrink=0.775)
+    
     if names:
         # Turn labels on
         ax.xaxis.set_major_locator(MyLocator(1, 0))
@@ -76,6 +90,10 @@ def make_grid(w, names, filename):
     fig.savefig(filename + ".pdf", dpi=100)
     fig.savefig(filename + ".png", dpi=100)
 
+    # restore old error settings
+    np.seterr(**old)
+
+
 def get_kendall_tau(x, y):
     """Return Kendall's tau, a non-parametric test of association. If
      one of the variables is constant, a FloatingPointError will
@@ -83,7 +101,9 @@ def get_kendall_tau(x, y):
      this runs Kendall's tau-b, accounting for ties and suitable for
      square tables:
      [http://en.wikipedia.org/wiki/Kendall_tau_rank_correlation_coefficient#Tau-b]
-     [http://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.kendalltau.html]"""
+     [http://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.kendalltau.html].
+     However it is of n^2 time complexity, hence unsuitable for even
+     medium-sized inputs."""
 
     if "scipy" not in locals():
         import scipy.stats
@@ -153,7 +173,8 @@ def make_correlation_tables(codename, txt=""):
         "Symmetry", "MeanFanout", "DiscreteMetric",
         "TED",
         "TAD0", "TAD1", "TAD2", "TAD3", "TAD4", "TAD5",
-        "OVD"
+        "OVD",
+        "MFPT_VLA", "CT_VLA"
     ]
     # ga distances
     if "ga_length" in codename:
@@ -161,7 +182,6 @@ def make_correlation_tables(codename, txt=""):
             "Hamming"
         ]
 
-    gold_names = ["D_TP", "MFPT", "SP", "STEPS"]
     d = {}
     for name in syntactic_distance_names + gold_names:
         # print("reading " + name)
@@ -251,22 +271,16 @@ def compare_sampled_v_calculated(codename):
     f.close()
 
 def write_steady_state(codename):
-    """Read in a TP matrix given a codename. Use ergodic.steady_state
-    to calculate the long-run steady-state, which is a vector
-    representing how long the system will spend in each state in the
-    long run. If not uniform, that is a bias imposed by the operator
-    on the system. Write it out and plot it. Also calculate the
+    """Get steady state, write it out and plot it. Also calculate the
     in-degree of each node, by summing columns. Plot that on the same
     plot. Calculate the correlation between steady-state and
     in-degree. Calculate the stddev of the steady-state as well, and
     (why not) the stddev of the TP matrix as well."""
-    import ergodic
+    from random_walks import get_steady_state
     if "scipy" not in locals():
         import scipy.stats
     tp = np.genfromtxt(codename + "/TP.dat")
-    ss = np.array(ergodic.steady_state(np.matrix(tp)))
-    ss = np.real(ss) # discard zero imaginary parts
-    ss = ss.T[0] # not sure why it ends up with an extra unused dimension
+    ss = get_steady_state(tp)
     s = ("Stddev " + str(np.std(ss)) + ". ")
     open(codename + "/steady_state.tex", "w").write(s)
     s = ("Stddev " + str(np.std(tp)) + ". ")
@@ -299,6 +313,49 @@ def write_steady_state(codename):
     fig.savefig(filename + ".pdf")
     fig.savefig(filename + ".png")
 
+def make_mds_images(codename):
+    """Make MDS images for multiple distance matrices. Each matrix
+    must be symmetric. Must not contain any infinities, which prevents
+    SD_TP in a space like ga_length_4_per_ind."""
+
+    for name in ["CT", "SD_TP", "TED", "TAD0", "OVD", "FVD"]:
+        m = np.genfromtxt(codename + "/" + name + ".dat")
+        make_mds_image(m, codename + "/" + name + "_MDS")
+    
+def make_mds_image(m, filename):
+    """Given a matrix of distances, project into 2D space using
+    multi-dimensional scaling and produce an image."""
+
+    # Construct MDS object with various defaults including 2d
+    mds = MDS(dissimilarity="precomputed")
+    # Fit
+    try:
+        f = mds.fit(m)
+    except ValueError:
+        print("Can't run MDS for " + filename + " because it contains infinities.")
+        return
+    
+    # Get the embedding in 2d space
+    p = f.embedding_
+
+    # Make an image
+    plt.figure()
+    # x- and y-coordinates
+    plt.axes().set_aspect('equal')
+    plt.scatter(p[:,0], p[:,1],
+                marker='.', c='b')
+    # For triangles and random colours use this:
+    # marker='^',
+    # c=[random.random() for i in range(len(p[:,0]))],
+    # cmap=cm.autumn)
+    plt.savefig(filename + ".png")
+    plt.savefig(filename + ".pdf")
+
+    # Could use custom marker types and colours to get an interesting
+    # diagram?
+    # http://matplotlib.org/api/path_api.html#matplotlib.path.Path
+    # (pass marker=Path() from above), and then use random colours?
+
 if __name__ == "__main__":
     cmd = sys.argv[1]
     codename = sys.argv[2]
@@ -312,3 +369,5 @@ if __name__ == "__main__":
         make_grid_plots(codename)
     elif cmd == "writeSteadyState":
         write_steady_state(codename)
+    elif cmd == "makeMDSImages":
+        make_mds_images(codename)

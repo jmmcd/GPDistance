@@ -78,6 +78,8 @@ def set_self_transition_zero(x):
     # method works ok.
     for i in range(len(x)):
         x[i][i] = 0.0
+    # FIXME this is the right method -- avoids python loop
+    # x -= np.diag(x) * np.eye(len(x))
         
 
 def get_mfpt(x):
@@ -174,15 +176,53 @@ def get_dtp(t):
     set_self_transition_zero(x)
     return x
 
+def get_symmetric_version(m):
+    """Given an asymmetric matrix, return the symmetrized version,
+    which is the mean of the matrix and its transpose."""
+    return 0.5 * (m + m.T)
+
 def write_symmetric_remoteness(codename):
-    """Read in the TP matrix and the MFPT one, and write out the
-    symmetric versions. Maybe do STEPS and SP also?"""
-    tp = np.genfromtxt(codename + "/TP.dat")
+    """Read in the D_TP matrix and the MFPT one, and write out the
+    symmetric versions."""
+    dtp = np.genfromtxt(codename + "/D_TP.dat")
     mfpt = np.genfromtxt(codename + "/MFPT.dat")
-    stp = 0.5 * (tp + tp.T)
-    ct = 0.5 * (mfpt + mfpt.T)
-    np.savetxt(codename + "/STP.dat", stp)
+    sdtp = get_symmetric_version(dtp)
+    ct = get_symmetric_version(mfpt)
+    # SD_TP is symmetric transition probability distance
+    np.savetxt(codename + "/SD_TP.dat", sdtp)
+    # CT stands for commute time
     np.savetxt(codename + "/CT.dat", ct)
+
+def get_steady_state(tp):
+    """Given a transition probability matrix, use ergodic.steady_state
+    to calculate the long-run steady-state, which is a vector
+    representing how long the system will spend in each state in the
+    long run. If not uniform, that is a bias imposed by the operator
+    on the system."""
+    import ergodic
+    ss = np.array(ergodic.steady_state(np.matrix(tp)))
+    ss = np.real(ss) # discard zero imaginary parts
+    ss = ss.T[0] # not sure why it ends up with an extra unused dimension
+    return ss
+
+def get_Boley_undirected(tp):
+    """Boley et al define an undirected graph which "corresponds to" a
+    directed graph. Its adjacency matrix is G**s = (Pi * P + P' *
+    Pi)/2, where Pi is the steady-state set out along a diagonal and P
+    is the transition probability matrix. But we will get the
+    transition probability matrix:
+
+    P**s = (P + inv(Pi) * P.T * Pi) / 2
+
+    Note that this matrix is not necessarily symmetric.
+    """
+    from numpy import dot as d
+    P = tp
+    Pi = np.diag(get_steady_state(tp))
+    return (P + d(d(np.linalg.inv(Pi), P.T), Pi)) / 2.0
+
+def is_symmetric(x):
+    return np.allclose(x, x.T)
 
 def read_and_get_Von_Luxburg_approximations(codename):
     # assumes TP and MFPT have been calculated and written out already
@@ -194,10 +234,10 @@ def read_and_get_Von_Luxburg_approximations(codename):
     # d_v is the in-degree, which is the column sum. this
     # multiplication does the right thing
     d_v = np.sum(t, axis=0) * ones
-    # transpose and repeat to get d_u
+    # transpose to get d_u
     d_u = d_v.T
-    # vol(G) is sum of degrees, which we interpret in the direct case
-    # as sum of out-degrees (which is anyway equal to sum of
+    # vol(G) is sum of degrees, which we interpret in the directed
+    # case as sum of out-degrees (which is anyway equal to sum of
     # in-degrees); because weights are transition probabilities, each
     # out-degree = 1; so vol(G) = n.
     vol_G = float(n)
@@ -212,17 +252,35 @@ def read_and_get_Von_Luxburg_approximations(codename):
     outfilename = codename + "/CT_VLA.dat"
     np.savetxt(outfilename, ct_vla)
 
-    R = mfpt / vol_G
-    S = R - d_u - d_v
-    # t is the adjacency matrix
-    t_diag = np.sum(t * np.eye(n)) * ones
-    t_ii = t_diag
-    t_jj = t_diag.T
-    u = 2 * t / (d_u * d_v) - t_ii / d_u**2  - t_jj / d_v**2
-    C_amp = S + u
-    set_self_transition_zero(C_amp)
-    outfilename = codename + "/C_amp.dat"
-    np.savetxt(outfilename, C_amp)
+    # The following requires a symmetric transition matrix, so we'll
+    # comment it out for now.
+
+    # compute commute time limit expression: 
+    # d = sum(A, 2); 
+    # Rlimit = repmat( (1./d ),1,n)+repmat( (1./d)',n,1);
+
+    # % compute correction term u_{ij}: 
+    # tmp = repmat(diag(A), 1, n) ./ (repmat(d.^2, 1, n)); 
+    # tmp2 = repmat(d, 1, n) .* repmat(d', n, 1); 
+    # uAu =  tmp + tmp' - 2 * A ./ tmp2; 
+
+    # % compute amplified commute: 
+    # tmp = R  - Rlimit - uAu; 
+
+    # % enforce 0 diagonal: 
+    # D= tmp - diag(diag(tmp));
+    
+    # R = mfpt / vol_G
+    # S = R - d_u - d_v
+    # # t is the adjacency matrix
+    # t_diag = np.diag(t)
+    # t_ii = t_diag
+    # t_jj = t_diag.T
+    # u = 2 * t / (d_u * d_v) - t_ii / d_u**2  - t_jj / d_v**2
+    # C_amp = S + u
+    # set_self_transition_zero(C_amp)
+    # outfilename = codename + "/C_amp.dat"
+    # np.savetxt(outfilename, C_amp)
     
 
 def Laplacian_matrix(A):
@@ -344,17 +402,14 @@ def generate_ga_tm(codename, pmut=None):
     np.savetxt(outfilename, hm)
     
 if __name__ == "__main__":
-    cmd = sys.argv[1]
-    codename = sys.argv[2]
+    codename = sys.argv[1]
 
-    if cmd == "writeSymmetricRemoteness":
-        write_symmetric_remoteness(codename)
+    if "depth" in codename:
+        # Matrices have already been generated by Java code.
+        pass
+    elif "per_ind" in codename:
+        generate_ga_tm(codename)
     else:
-        if "depth" in codename:
-            # Matrices have already been generated by Java code.
-            pass
-        elif "per_ind" in codename:
-            generate_ga_tm(codename)
-        else:
-            generate_ga_tm(codename, 0.1)
-        read_and_get_dtp_mfpt_sp_steps(codename)
+        generate_ga_tm(codename, 0.1)
+    #read_and_get_dtp_mfpt_sp_steps(codename)
+    write_symmetric_remoteness(codename)
