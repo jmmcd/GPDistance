@@ -16,15 +16,22 @@ import random
 class MyLocator(mpl.ticker.IndexLocator):
     MAXTICKS=1500
 
-gold_names = ["D_TP", "STP", "MFPT", "SP", "STEPS", "CT"]
+graph_distance_names = ["D_TP", "STP", "MFPT", "SP", "STEPS",
+                        "CT", "MFPT_VLA", "CT_VLA",
+                        "SD_TP"
+                        ]
+graph_distance_tex_names = ["$D_{\mathrm{TP}}$", "STP", "MFPT", "SP", "STEPS",
+                            "CT", "MFPT-VLA", "CT-VLA",
+                            r"S$D_{TP}$"
+                            ]
 
-def make_grid_plots(codename):
-    if "depth" in codename:
-        names = open(codename + "/all_trees.dat").read().strip().split("\n")
+def make_grid_plots(dirname):
+    if "depth" in dirname:
+        names = open(dirname + "/all_trees.dat").read().strip().split("\n")
         names = map(lambda x: x.strip(), names)
     else:
         # Assume GA
-        length = int(codename.strip("/").split("_")[2])
+        length = int(dirname.strip("/").split("_")[2])
         names = [bin(i)[2:] for i in range(2**length)]
     
     # gp distances
@@ -37,16 +44,16 @@ def make_grid_plots(codename):
         "OVD"
     ]
     # ga distances
-    if "ga_length" in codename:
+    if "ga_length" in dirname:
         syntactic_distance_names = [
             "Hamming"
         ]
     
-    for name in gold_names + syntactic_distance_names:
+    for name in graph_distance_names + syntactic_distance_names:
         # if name not in ("OVD", "TAD0"): continue
-        w = np.genfromtxt(codename + "/" + name + ".dat")
+        w = np.genfromtxt(dirname + "/" + name + ".dat")
         assert(len(w) == len(names))
-        make_grid(w, False, codename + "/" + name)
+        make_grid(w, False, dirname + "/" + name)
     print names # better to print them in a list somewhere than in the graph
         
 def make_grid(w, names, filename):
@@ -164,7 +171,7 @@ def get_pearson_r(x, y):
     np.seterr(**old)
     return corr, p
 
-def make_correlation_tables(codename, txt=""):
+def make_correlation_tables(dirname, txt=""):
 
     # gp distances
     syntactic_distance_names = [
@@ -174,30 +181,29 @@ def make_correlation_tables(codename, txt=""):
         "TED",
         "TAD0", "TAD1", "TAD2", "TAD3", "TAD4", "TAD5",
         "OVD",
-        "MFPT_VLA", "CT_VLA"
     ]
     # ga distances
-    if "ga_length" in codename:
+    if "ga_length" in dirname:
         syntactic_distance_names = [
             "Hamming"
         ]
 
     d = {}
-    for name in syntactic_distance_names + gold_names:
+    for name in syntactic_distance_names + graph_distance_names:
         # print("reading " + name)
-        m = np.genfromtxt(codename + "/" + name + ".dat")
+        m = np.genfromtxt(dirname + "/" + name + ".dat")
         d[name] = m.reshape(len(m)**2)
 
     def do_line(syn):
         line = syn.replace("_TP", r"$_{\mathrm{TP}}$")
-        for gold in gold_names:
-            print("getting association between " + gold + " " + syn)
+        for graph_distance in graph_distance_names:
+            print("getting association between " + graph_distance + " " + syn)
             if corr_type == "spearmanrho":
-                corr, p = get_spearman_rho(d[gold], d[syn])
+                corr, p = get_spearman_rho(d[graph_distance], d[syn])
             elif corr_type == "kendalltau":
-                corr, p = get_kendall_tau(d[gold], d[syn])
+                corr, p = get_kendall_tau(d[graph_distance], d[syn])
             elif corr_type == "pearsonr":
-                corr, p = get_pearson_r(d[gold], d[syn])
+                corr, p = get_pearson_r(d[graph_distance], d[syn])
             else:
                 print("Unknown correlation type " + corr_type)
             if p < 0.05:
@@ -212,7 +218,7 @@ def make_correlation_tables(codename, txt=""):
         if corr_type == "kendalltau" and len(d["STEPS"]) > 1000:
             print("Omitting Kendall tau because it is infeasible for large matrices")
             continue
-        filename = codename + "/correlation_table_" + corr_type + ".tex"
+        filename = dirname + "/correlation_table_" + corr_type + ".tex"
         f = open(filename, "w")
 
         f.write(r"""\begin{table}
@@ -225,15 +231,15 @@ def make_correlation_tables(codename, txt=""):
         elif corr_type == "kendalltau":
             f.write("using Kendall's tau: ")
         f.write(txt)
-        f.write(r"""\label{tab:correlationresults_""" + os.path.basename(codename) + "}}\n")
+        f.write(r"""\label{tab:correlationresults_""" + os.path.basename(dirname) + "}}\n")
         f.write(r"""\begin{tabular}{l|l|l|l|l}
-     & D$_{\mathrm{TP}}$ & MFPT & SP & STEPS \\
+     & """ + " & ".join(graph_distance_tex_names)  + """\\
 \hline
 \hline
 """)
 
-        for gold in gold_names:
-            do_line(gold)
+        for graph_distance in graph_distance_names:
+            do_line(graph_distance)
         f.write(r"""\hline
 \hline
 """)
@@ -245,16 +251,16 @@ def make_correlation_tables(codename, txt=""):
 
     f.close()
 
-def compare_sampled_v_calculated(codename):
+def compare_sampled_v_calculated(dirname):
     if "scipy" not in locals():
         import scipy.stats
     
-    stp = np.genfromtxt(codename + "/TP_sampled.dat")
+    stp = np.genfromtxt(dirname + "/TP_sampled.dat")
     stp = stp.reshape(len(stp)**2)
-    tp = np.genfromtxt(codename + "/TP.dat")
+    tp = np.genfromtxt(dirname + "/TP.dat")
     tp = tp.reshape(len(tp)**2)
 
-    filename = codename + "/compare_TP_calculated_v_sampled.tex"
+    filename = dirname + "/compare_TP_calculated_v_sampled.tex"
     f = open(filename, "w")
     corr, p = scipy.stats.pearsonr(tp, stp)
     f.write("Pearson R correlation " + str(corr) + "; ")
@@ -270,7 +276,7 @@ def compare_sampled_v_calculated(codename):
         f.write("Omitting Kendall tau because it is infeasible for large matrices. ")
     f.close()
 
-def write_steady_state(codename):
+def write_steady_state(dirname):
     """Get steady state, write it out and plot it. Also calculate the
     in-degree of each node, by summing columns. Plot that on the same
     plot. Calculate the correlation between steady-state and
@@ -279,18 +285,18 @@ def write_steady_state(codename):
     from random_walks import get_steady_state
     if "scipy" not in locals():
         import scipy.stats
-    tp = np.genfromtxt(codename + "/TP.dat")
+    tp = np.genfromtxt(dirname + "/TP.dat")
     ss = get_steady_state(tp)
     s = ("Stddev " + str(np.std(ss)) + ". ")
-    open(codename + "/steady_state.tex", "w").write(s)
+    open(dirname + "/steady_state.tex", "w").write(s)
     s = ("Stddev " + str(np.std(tp)) + ". ")
-    open(codename + "/tp_stddev.tex", "w").write(s)
+    open(dirname + "/tp_stddev.tex", "w").write(s)
     cs = np.sum(tp, axis=0)
     cs /= np.sum(cs)
     s = ("Pearson correlation between steady-state vector "
          + "and normalised in-degree vector"
          + str(scipy.stats.pearsonr(ss, cs)) + ". ")
-    open(codename + "/in_degree.tex", "w").write(s)
+    open(dirname + "/in_degree.tex", "w").write(s)
     
     fig = plt.figure(figsize=(6.5, 3.5))
     ax = fig.add_subplot(1, 1, 1)
@@ -301,26 +307,26 @@ def write_steady_state(codename):
     ax.plot(ss, label="Steady-state", lw=2)
     ax.plot(cs, label="Normalised in-degree", lw=2)
     ax.set_xticklabels([], [])
-    if ("depth_1" in codename) or ("ga_length" in codename):
+    if ("depth_1" in dirname) or ("ga_length" in dirname):
         plt.legend(loc=3)
     else:
         plt.legend(loc=1)
-    filename = codename + "/steady_state.dat"
+    filename = dirname + "/steady_state.dat"
     np.savetxt(filename, ss)
-    filename = codename + "/in_degree.dat"
+    filename = dirname + "/in_degree.dat"
     np.savetxt(filename, cs)
-    filename = codename + "/steady_state"
+    filename = dirname + "/steady_state"
     fig.savefig(filename + ".pdf")
     fig.savefig(filename + ".png")
 
-def make_mds_images(codename):
+def make_mds_images(dirname):
     """Make MDS images for multiple distance matrices. Each matrix
     must be symmetric. Must not contain any infinities, which prevents
     SD_TP in a space like ga_length_4_per_ind."""
 
     for name in ["CT", "SD_TP", "TED", "TAD0", "OVD", "FVD"]:
-        m = np.genfromtxt(codename + "/" + name + ".dat")
-        make_mds_image(m, codename + "/" + name + "_MDS")
+        m = np.genfromtxt(dirname + "/" + name + ".dat")
+        make_mds_image(m, dirname + "/" + name + "_MDS")
     
 def make_mds_image(m, filename):
     """Given a matrix of distances, project into 2D space using
@@ -358,16 +364,16 @@ def make_mds_image(m, filename):
 
 if __name__ == "__main__":
     cmd = sys.argv[1]
-    codename = sys.argv[2]
+    dirname = sys.argv[2]
 
     if cmd == "compareTPCalculatedVSampled":
-        compare_sampled_v_calculated(codename)
+        compare_sampled_v_calculated(dirname)
     elif cmd == "makeCorrelationTable":
         txt = sys.argv[3]
-        make_correlation_tables(codename, txt)
+        make_correlation_tables(dirname, txt)
     elif cmd == "makeGridPlots": 
-        make_grid_plots(codename)
+        make_grid_plots(dirname)
     elif cmd == "writeSteadyState":
-        write_steady_state(codename)
+        write_steady_state(dirname)
     elif cmd == "makeMDSImages":
-        make_mds_images(codename)
+        make_mds_images(dirname)

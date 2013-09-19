@@ -21,7 +21,7 @@ import itertools
 # Berlin.
 import ergodic
 
-def estimate_MFPT_with_supernode(codename):
+def estimate_MFPT_with_supernode(dirname):
     """Given a directory, go in there and get all the files under
     TP_supernode_estimates. For each, run the algorithm to get mfpt,
     and from the result extract the (0, 1) and (1, 0) values. Find out
@@ -29,15 +29,15 @@ def estimate_MFPT_with_supernode(codename):
     values and the values calculated by exact MFPT given the complete
     TP matrix."""
     n = 50
-    all_trees = open(codename + "/all_trees.dat").read().strip().split("\n")
+    all_trees = open(dirname + "/all_trees.dat").read().strip().split("\n")
     estimate = np.zeros(2 * n)
-    exact = np.genfromtxt(codename + "/MFPT.dat")
+    exact = np.genfromtxt(dirname + "/MFPT.dat")
     exact_extract = np.zeros(2 * n)
     for i in range(n):
-        d = read_transition_matrix(codename + "/TP_supernode_estimates/"
+        d = read_transition_matrix(dirname + "/TP_supernode_estimates/"
                                    + str(i) + "_TP_estimates.dat")
         m = get_mfpt(d)
-        t, s = open(codename + "/TP_supernode_estimates/"
+        t, s = open(dirname + "/TP_supernode_estimates/"
                     + str(i) + "_trees.dat").read().strip().split("\n")
         ti = all_trees.index(t)
         si = all_trees.index(s)
@@ -45,8 +45,8 @@ def estimate_MFPT_with_supernode(codename):
         estimate[2*i+1] = m[1, 0]
         exact_extract[2*i] = exact[ti, si]
         exact_extract[2*i+1] = exact[si, ti]
-    np.savetxt(codename + "/MFPT_supernode_estimate.dat", estimate)
-    np.savetxt(codename + "/MFPT_exact_for_supernode_estimate.dat", exact_extract)
+    np.savetxt(dirname + "/MFPT_supernode_estimate.dat", estimate)
+    np.savetxt(dirname + "/MFPT_exact_for_supernode_estimate.dat", exact_extract)
 
 def normalise_by_row(d):
     """Normalise an array row-by-row, ie make each row sum to 1. This
@@ -208,17 +208,17 @@ def get_symmetric_version(m):
     which is the mean of the matrix and its transpose."""
     return 0.5 * (m + m.T)
 
-def write_symmetric_remoteness(codename):
+def write_symmetric_remoteness(dirname):
     """Read in the D_TP matrix and the MFPT one, and write out the
     symmetric versions."""
-    dtp = np.genfromtxt(codename + "/D_TP.dat")
-    mfpt = np.genfromtxt(codename + "/MFPT.dat")
+    dtp = np.genfromtxt(dirname + "/D_TP.dat")
+    mfpt = np.genfromtxt(dirname + "/MFPT.dat")
     sdtp = get_symmetric_version(dtp)
     ct = get_symmetric_version(mfpt)
     # SD_TP is symmetric transition probability distance
-    np.savetxt(codename + "/SD_TP.dat", sdtp)
+    np.savetxt(dirname + "/SD_TP.dat", sdtp)
     # CT stands for commute time
-    np.savetxt(codename + "/CT.dat", ct)
+    np.savetxt(dirname + "/CT.dat", ct)
 
 def get_steady_state(tp):
     """Given a transition probability matrix, use ergodic.steady_state
@@ -251,10 +251,10 @@ def get_Boley_undirected(tp):
 def is_symmetric(x):
     return np.allclose(x, x.T)
 
-def read_and_get_Von_Luxburg_approximations(codename):
+def read_and_get_Von_Luxburg_approximations(dirname):
     # assumes TP and MFPT have been calculated and written out already
-    t = read_transition_matrix(codename + "/TP.dat")
-    mfpt = np.genfromtxt(codename + "/MFPT.dat")
+    t = read_transition_matrix(dirname + "/TP.dat")
+    mfpt = np.genfromtxt(dirname + "/MFPT.dat")
     ones = np.ones_like(t)
     n = t.shape[0]
     
@@ -271,12 +271,12 @@ def read_and_get_Von_Luxburg_approximations(codename):
     
     mfpt_vla = vol_G * 1.0 / d_v
     set_self_transition_zero(mfpt_vla)
-    outfilename = codename + "/MFPT_VLA.dat"
+    outfilename = dirname + "/MFPT_VLA.dat"
     np.savetxt(outfilename, mfpt_vla)
 
     ct_vla = vol_G * (1.0 / d_u + 1.0 / d_v)
     set_self_transition_zero(ct_vla)
-    outfilename = codename + "/CT_VLA.dat"
+    outfilename = dirname + "/CT_VLA.dat"
     np.savetxt(outfilename, ct_vla)
 
     # The following requires a symmetric transition matrix, so we'll
@@ -306,7 +306,7 @@ def read_and_get_Von_Luxburg_approximations(codename):
     # u = 2 * t / (d_u * d_v) - t_ii / d_u**2  - t_jj / d_v**2
     # C_amp = S + u
     # set_self_transition_zero(C_amp)
-    # outfilename = codename + "/C_amp.dat"
+    # outfilename = dirname + "/C_amp.dat"
     # np.savetxt(outfilename, C_amp)
     
 
@@ -346,7 +346,7 @@ def Yen_correction(m):
 def Brand_correction(m):
     """Placeholder. From Von Luxburg et al."""
     # assumes mfpt has been calculated and written out already
-    # mfpt = np.genfromtxt(codename + "/MFPT.dat")
+    # mfpt = np.genfromtxt(dirname + "/MFPT.dat")
     # R = mfpt / vol_G
     n = m.shape[0]
     sum_all = np.sum(R)
@@ -360,55 +360,55 @@ def Brand_correction(m):
     K_B = K / np.sqrt(Kii * Kjj) # (need to express KiiKjj as a matrix)
     return K_B
     
-def read_and_get_dtp_mfpt_sp_steps(codename):
+def read_and_get_dtp_mfpt_sp_steps(dirname):
 
-    if os.path.exists(codename + "/TP_nonnormalised.dat"):
-        t = read_transition_matrix(codename + "/TP_nonnormalised.dat")
+    if os.path.exists(dirname + "/TP_nonnormalised.dat"):
+        t = read_transition_matrix(dirname + "/TP_nonnormalised.dat")
         # it's a non-normalised matrix, possibly representing a
         # uniformly sampled sub-graph, a hill-climb-sampled graph, or
         # similar.
         t = normalise_by_row(t)
-        outfilename = codename + "/TP.dat"
+        outfilename = dirname + "/TP.dat"
         np.savetxt(outfilename, t)
     else:
-        t = read_transition_matrix(codename + "/TP.dat")
+        t = read_transition_matrix(dirname + "/TP.dat")
         check_row_sums(t)
 
     # This gets D_TP, which is just the transition probability inverted
     d = get_dtp(t)
-    outfilename = codename + "/D_TP.dat"
+    outfilename = dirname + "/D_TP.dat"
     np.savetxt(outfilename, d)
     
     # This gets the mean first passage time, ie the expected length of
     # a random walk.
     f = get_mfpt(t)
-    outfilename = codename + "/MFPT.dat"
+    outfilename = dirname + "/MFPT.dat"
     np.savetxt(outfilename, f)
 
     # This gets the cost of the shortest path between pairs. The cost
     # of an edge is the negative log of its probability.
     h = floyd_warshall_probabilities(t)
-    outfilename = codename + "/SP.dat"
+    outfilename = dirname + "/SP.dat"
     np.savetxt(outfilename, h)
 
     # this gets the minimum number of steps required to go between
     # pairs, disregarding probabilities. Only interesting if some
     # edges are absent (ie edge probability is zero).
     p = floyd_warshall_nsteps(t)
-    outfilename = codename + "/STEPS.dat"
+    outfilename = dirname + "/STEPS.dat"
     np.savetxt(outfilename, p)
 
 def hamming_distance(x, y):
     return np.sum(x != y)
     
-def generate_ga_tm(codename, pmut=None):
+def generate_ga_tm(dirname, pmut=None):
     """For a bitstring (genetic algorithm) representation of a given
     length, generate a transition matrix with the mutation probability
     pmut. Also generate the Hamming distances. If pmut=None (default),
     exactly one bitflip is performed per individual, rather than using
     a per-gene mutation probability."""
     
-    length = int(codename.strip("/").split("_")[2])
+    length = int(dirname.strip("/").split("_")[2])
     tm = np.zeros((2**length, 2**length))
     hm = np.zeros((2**length, 2**length))
     for i, indi in enumerate(itertools.product(*[(0, 1) for x in range(length)])):
@@ -423,21 +423,21 @@ def generate_ga_tm(codename, pmut=None):
                     # else leave it at zero
             else:
                 tm[i][j] = (pmut ** h) * ((1.0 - pmut) ** (length - h))
-    outfilename = codename + "/TP.dat"
+    outfilename = dirname + "/TP.dat"
     np.savetxt(outfilename, tm)
-    outfilename = codename + "/Hamming.dat"
+    outfilename = dirname + "/Hamming.dat"
     np.savetxt(outfilename, hm)
     
 if __name__ == "__main__":
-    codename = sys.argv[1]
+    dirname = sys.argv[1]
 
-    if "depth" in codename:
+    if "depth" in dirname:
         # Matrices have already been generated by Java code.
         pass
-    elif "per_ind" in codename:
-        generate_ga_tm(codename)
+    elif "per_ind" in dirname:
+        generate_ga_tm(dirname)
     else:
-        generate_ga_tm(codename, 0.1)
-    # read_and_get_dtp_mfpt_sp_steps(codename)
-    # write_symmetric_remoteness(codename)
-    estimate_MFPT_with_supernode(codename)
+        generate_ga_tm(dirname, 0.1)
+    # read_and_get_dtp_mfpt_sp_steps(dirname)
+    # write_symmetric_remoteness(dirname)
+    estimate_MFPT_with_supernode(dirname)
