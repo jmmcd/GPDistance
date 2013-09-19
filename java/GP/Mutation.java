@@ -93,6 +93,19 @@ public class Mutation {
 
     // Assumes that t and s are proper trees, where IDs reflect
     // depth-first traversal and depths are calculated correctly.
+
+    // This is wrong:
+    // From (+ y (* x x))
+    // To y
+    // TP 0.0
+
+    // From x
+    // To y
+    // TP 0.0
+
+    // From (+ x y)
+    // To y
+    // TP 0.0    
     public float transitionProbability(Tree t, Tree s) {
         int F = language.F;
         int T = language.T;

@@ -192,6 +192,98 @@ public class Sample {
     }
     
 
+    public void estimateTPWithSuperNode(String basename, int reps, int M) {
+        (new File(basename)).mkdirs();
+        for (int i = 0; i < reps; i++) {
+            estimateTPBetweenPairWithSuperNode(basename + i, M);
+        }
+    }
+
+    public void estimateTPBetweenPairWithSuperNode(String basename, int M) {
+
+        // Get 2 trees and M neighbours of each into a list
+        int N = 2;
+        
+        int L = N + N * M; // number of trees in the list
+        
+        ArrayList<Tree> ijAndNeighbours = new ArrayList<Tree>();
+        ArrayList<String> ijAndNeighboursStrings = new ArrayList<String>();
+        
+        for (int i = 0; i < N; i++) {
+            Tree tree = new Tree("x");
+            mutator.grow(tree.getRoot(), maxDepth);
+            ijAndNeighbours.add(tree);
+            ijAndNeighboursStrings.add(tree.toString());
+        }
+        
+        for (int i = 0; i < N; i++) {
+            while (ijAndNeighbours.size() < L) {
+                Tree tree = ijAndNeighbours.get(i);
+                Tree newTree = mutator.mutate(tree);
+                if (ijAndNeighboursStrings.indexOf(newTree.toString()) == -1) {
+                    ijAndNeighbours.add(newTree);
+                    ijAndNeighboursStrings.add(newTree.toString());
+                }
+            }
+        }
+
+        try {
+
+            FileWriter ijFile = new FileWriter(basename + "_trees.dat");
+            FileWriter tpFile = new FileWriter(basename + "_TP_estimates.dat");
+        
+            float Sc = 0.0f; // sum of inward TPs to supernode over all rows but last
+            for (int i = 0; i < L; i++) {
+                float rowsum = 0.0f;
+                for (int j = 0; j < L; j++) {
+                    float tp = mutator.transitionProbability(ijAndNeighbours.get(i),
+                                                             ijAndNeighbours.get(j));
+                    rowsum += tp;
+                    tpFile.write(tp + " ");
+
+                    // FIXME it seems to get too-large values sometimes
+                    System.out.println("From " + ijAndNeighbours.get(i));
+                    System.out.println("To " + ijAndNeighbours.get(j));
+                    System.out.println("TP " + tp);
+
+                }
+
+                // write the inward TP for supernode
+                tpFile.write(1.0f - rowsum + "");
+                Sc += 1.0f - rowsum;
+
+                System.out.println("rowsum " + rowsum);
+                tpFile.write("\n");
+                System.exit(1);
+
+            }
+
+            // TP(x, S) = 1 - sum(TP(x, y)) for all y = 1 - rowsum
+            
+            // assume TP(S, x) = sum(TP(x, S) for all x) / (L-1) = Sc
+
+            // TP(S, S) = 1 - sum(TP(S, x) for all x)
+
+            for (int i = 0; i < L; i++) {
+                tpFile.write(Sc / (L - 1) + " ");
+            }
+            tpFile.write(1.0f - Sc + "\n");
+
+            // Write out the two trees of interest, the original centres
+            for (int i = 0; i < 2; i++) {
+                ijFile.write(ijAndNeighbours.get(i).toString() + "\n");
+            }
+            
+            // close files
+            ijFile.close();
+            tpFile.close();
+        
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+            
+    }
+
     // Estimate the length of a random walk by simulation. This
     // function doesn't collect a sample of individuals. It just
     // performs walks and saves the number of steps between pairs of
@@ -230,12 +322,10 @@ public class Sample {
             walkLengths.put(s, tmp);
         }
 
-        // start with a random node FIXME should start at one of the
-        // individuals of interest -- no reason to start anywhere
-        // else.
-        Tree current = new Tree("x");
-        mutator.grow(current.getRoot(), maxDepth);
-        String cs = current.toString();
+        // start at one of the individuals of interest -- no reason to
+        // start anywhere else.
+        String cs = ofInterest.get(0);
+        Tree current = new Tree(cs);
         
         // perform a random walk
         for (int i = 0; i < 1000; i++) {
@@ -529,6 +619,17 @@ public class Sample {
             sample.writeMatrices(ofInterest,
                                  "random_walking_" + maxDepth,
                                  true, hshsali);
+
+        } else if (args.length == 2 && args[0].equals("sampleForSuperNode")) {
+            int maxDepth = new Integer(args[1]);
+            // sample two individuals randomly, then get some near
+            // neighbours of both, then calculate all pairwise
+            // distances, then model the remainder of the graph as a
+            // single supernode and calculate its distances as well.
+            Sample sample = new Sample(maxDepth);
+            String basename = ("../results/depth_" + maxDepth
+                               + "/TP_supernode_estimates/");
+            sample.estimateTPWithSuperNode(basename, 50, 10);
 
         } else if (args.length == 2 && args[0].equals("sampleOneStepProbabilities")) {
             int maxDepth = new Integer(args[1]);

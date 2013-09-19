@@ -21,6 +21,33 @@ import itertools
 # Berlin.
 import ergodic
 
+def estimate_MFPT_with_supernode(codename):
+    """Given a directory, go in there and get all the files under
+    TP_supernode_estimates. For each, run the algorithm to get mfpt,
+    and from the result extract the (0, 1) and (1, 0) values. Find out
+    which trees they correspond to. Then correlate between all these
+    values and the values calculated by exact MFPT given the complete
+    TP matrix."""
+    n = 50
+    all_trees = open(codename + "/all_trees.dat").read().strip().split("\n")
+    estimate = np.zeros(2 * n)
+    exact = np.genfromtxt(codename + "/MFPT.dat")
+    exact_extract = np.zeros(2 * n)
+    for i in range(n):
+        d = read_transition_matrix(codename + "/TP_supernode_estimates/"
+                                   + str(i) + "_TP_estimates.dat")
+        m = get_mfpt(d)
+        t, s = open(codename + "/TP_supernode_estimates/"
+                    + str(i) + "_trees.dat").read().strip().split("\n")
+        ti = all_trees.index(t)
+        si = all_trees.index(s)
+        estimate[2*i] = m[0, 1]
+        estimate[2*i+1] = m[1, 0]
+        exact_extract[2*i] = exact[ti, si]
+        exact_extract[2*i+1] = exact[si, ti]
+    np.savetxt(codename + "/MFPT_supernode_estimate.dat", estimate)
+    np.savetxt(codename + "/MFPT_exact_for_supernode_estimate.dat", exact_extract)
+
 def normalise_by_row(d):
     """Normalise an array row-by-row, ie make each row sum to 1. This
     is useful when creating transition matrices on sub-graphs, or
@@ -411,5 +438,6 @@ if __name__ == "__main__":
         generate_ga_tm(codename)
     else:
         generate_ga_tm(codename, 0.1)
-    #read_and_get_dtp_mfpt_sp_steps(codename)
-    write_symmetric_remoteness(codename)
+    # read_and_get_dtp_mfpt_sp_steps(codename)
+    # write_symmetric_remoteness(codename)
+    estimate_MFPT_with_supernode(codename)

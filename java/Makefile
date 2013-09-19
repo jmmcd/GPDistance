@@ -32,8 +32,14 @@ rwSampleDepth6:
 mhSampleDepth6:
 	java -cp ${cp} GP.Sample mhSampleMatrices 6
 
+randomWalkingDepth2:
+	java -cp ${cp} GP.Sample randomWalkingMatrices 2
+
+sampleForSuperNodeDepth2:
+	java -cp ${cp} GP.Sample sampleForSuperNode 2
+
 randomWalkingDepth6:
-	java -cp ${cp} GP.Sample randomWalking 6
+	java -cp ${cp} GP.Sample randomWalkingMatrices 6
 
 sampleOneStepProbabilitiesDepth1:
 	java -cp ${cp} GP.Sample sampleOneStepProbabilities 1
