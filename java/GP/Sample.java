@@ -212,14 +212,17 @@ public class Sample {
         for (int i = 0; i < N; i++) {
             Tree tree = new Tree("x");
             mutator.grow(tree.getRoot(), maxDepth);
-            ijAndNeighbours.add(tree);
+            ijAndNeighbours.add(tree.clone());
             ijAndNeighboursStrings.add(tree.toString());
         }
         
         for (int i = 0; i < N; i++) {
             while (ijAndNeighbours.size() < L) {
                 Tree tree = ijAndNeighbours.get(i);
-                Tree newTree = mutator.mutate(tree);
+                // FIXME this is a horrible bug: have to clone() here,
+                // else the TP can be zero. I think because the TP algorithm
+                // gets confused about ancestor of root.
+                Tree newTree = mutator.mutate(tree).clone();
                 if (ijAndNeighboursStrings.indexOf(newTree.toString()) == -1) {
                     ijAndNeighbours.add(newTree);
                     ijAndNeighboursStrings.add(newTree.toString());
@@ -232,7 +235,7 @@ public class Sample {
             FileWriter ijFile = new FileWriter(basename + "_trees.dat");
             FileWriter tpFile = new FileWriter(basename + "_TP_estimates.dat");
         
-            float Sc = 0.0f; // sum of inward TPs to supernode over all rows but last
+            float meanRowsum = 0.0f; // sum of inward TPs to supernode over all rows but last
             for (int i = 0; i < L; i++) {
                 float rowsum = 0.0f;
                 for (int j = 0; j < L; j++) {
@@ -242,32 +245,32 @@ public class Sample {
                     tpFile.write(tp + " ");
 
                     // FIXME it seems to get too-large values sometimes
-                    System.out.println("From " + ijAndNeighbours.get(i));
-                    System.out.println("To " + ijAndNeighbours.get(j));
-                    System.out.println("TP " + tp);
+                    // System.out.println("From " + ijAndNeighbours.get(i));
+                    // System.out.println("To " + ijAndNeighbours.get(j));
+                    // System.out.println("TP " + tp);
 
                 }
 
                 // write the inward TP for supernode
                 tpFile.write(1.0f - rowsum + "");
-                Sc += 1.0f - rowsum;
+                meanRowsum += (1.0f - rowsum);
 
-                System.out.println("rowsum " + rowsum);
+                // System.out.println("rowsum " + rowsum);
                 tpFile.write("\n");
-                System.exit(1);
-
             }
+
+            meanRowsum /= L;
 
             // TP(x, S) = 1 - sum(TP(x, y)) for all y = 1 - rowsum
             
-            // assume TP(S, x) = sum(TP(x, S) for all x) / (L-1) = Sc
+            // assume TP(S, S) = mean(rowsum)
 
-            // TP(S, S) = 1 - sum(TP(S, x) for all x)
+            // TP(S, x) = (1 - mean(rowsum)) / L -- share out remaining probability
 
             for (int i = 0; i < L; i++) {
-                tpFile.write(Sc / (L - 1) + " ");
+                tpFile.write((1.0f - meanRowsum) / L + " ");
             }
-            tpFile.write(1.0f - Sc + "\n");
+            tpFile.write(meanRowsum + "\n");
 
             // Write out the two trees of interest, the original centres
             for (int i = 0; i < 2; i++) {

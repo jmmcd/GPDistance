@@ -119,6 +119,7 @@ public class Mutation {
 
         ArrayList<Node> diffPts = differencePoints(t.getRoot(), s.getRoot());
         if (diffPts.size() == 0) {
+            // System.out.println("no diffPts");
             // if there are no differences, trees are identical and can cut
             // anywhere
             for (Node n: tNodes) {
@@ -127,6 +128,7 @@ public class Mutation {
                 requiredSubtrees.add(n);
             }
         } else {
+            // System.out.println("some diffPts");
             ArrayList<ArrayList<Integer>> ancestorPathsOfDiffPts
                 = new ArrayList<ArrayList<Integer>>();
             // for each difference point in t, find a list of
@@ -217,9 +219,12 @@ public class Mutation {
     // remember, return as soon as we see a difference.
     public static ArrayList<Node> differencePoints(Node t, Node s) {
         ArrayList<Node> retval = new ArrayList<Node>();
+        // System.out.println("testing " + t + " and " + s);
         if (!t.label.equals(s.label)) {
+            // System.out.println("adding");
             retval.add(t);
         } else {
+            // System.out.println("not adding");
             if (t.children.size() > 0) {
                 for (int i = 0; i < t.children.size(); i++) {
                     retval.addAll(differencePoints(t.children.get(i),

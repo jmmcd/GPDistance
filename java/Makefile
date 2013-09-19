@@ -4,6 +4,9 @@ all:
 	cd TreeDistance && make
 	cd GP && make
 
+testTP:
+	java -Xmx512m -cp ${cp} GP.Mutation "(+ x (+ y y))" "y"
+
 mh:
 	java -Xmx512m -cp ${cp} GP.Sample metro
 
