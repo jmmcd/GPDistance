@@ -32,12 +32,11 @@ types of distance:
 Build
 -----
 
-You need to get the JGraphT and JScheme libraries (in fact, they're
-only needed for peripheral functionality, but I haven't tried to
-remove the dependency yet) and the RTED library (which is used for
-core funcationality). Download and copy them to java/libraries:
+You need to get the JScheme library (in fact, it's only needed for
+peripheral functionality, but I haven't bothered to remove the
+dependency yet) and the RTED library (which is used for core
+functionality). Download and copy them to java/libraries:
 
-* http://sourceforge.net/projects/jgrapht/?source=dlp
 * http://sourceforge.net/projects/jscheme/?source=dlp
 * http://www.inf.unibz.it/dis/projects/tree-edit-distance/download.php
 

@@ -1,4 +1,4 @@
-cp=${CLASSPATH}:.:libraries/jgrapht-jdk1.6.jar:libraries/jscheme-7.2.jar:libraries/RTED_v1.1.jar
+cp=${CLASSPATH}:.:libraries/jscheme-7.2.jar:libraries/RTED_v1.1.jar
 
 all:
 	cd TreeDistance && make
@@ -36,13 +36,13 @@ mhSampleDepth6:
 	java -cp ${cp} GP.Sample mhSampleMatrices 6
 
 randomWalkingDepth2:
-	java -cp ${cp} GP.Sample randomWalkingMatrices 2
+	java -cp ${cp} GP.Sample randomWalking 2
+
+randomWalkingDepth6:
+	java -cp ${cp} GP.Sample randomWalking 6
 
 sampleForSuperNodeDepth2:
 	java -cp ${cp} GP.Sample sampleForSuperNode 2
-
-randomWalkingDepth6:
-	java -cp ${cp} GP.Sample randomWalkingMatrices 6
 
 sampleOneStepProbabilitiesDepth1:
 	java -cp ${cp} GP.Sample sampleOneStepProbabilities 1

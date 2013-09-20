@@ -21,6 +21,33 @@ import itertools
 # Berlin.
 import ergodic
 
+def analyse_random_walk(dirname):
+    """Java code will write out a list of sampled lengths of random
+    walks between nodes i and j. A single file, each line containing
+    the tree i, tree j, then the list of samples. Analyse the
+    basics."""
+    
+    n = 20
+    f = open(dirname + "/MFPT_random_walking_samples.dat")
+    x_mean = np.zeros((n, n))
+    x_var = np.zeros((n, n))
+    x_len = np.zeros((n, n), dtype=int)
+    i = 0
+    j = 0
+    for line in f:
+        t0, t1, samples = line.split(":")
+        samples = np.array(map(int, samples.strip().split(" ")))
+        x_mean[i, j] = np.mean(samples)
+        x_var[i, j] = np.std(samples)
+        x_len[i, j] = len(samples)
+        i += 1
+        if i == n:
+            i = 0
+            j += 1
+    print(x_mean)
+    print(x_var)
+    print(x_len)
+
 def estimate_MFPT_with_supernode(dirname):
     """Given a directory, go in there and get all the files under
     TP_supernode_estimates. For each, run the algorithm to get mfpt,
@@ -440,4 +467,5 @@ if __name__ == "__main__":
         generate_ga_tm(dirname, 0.1)
     # read_and_get_dtp_mfpt_sp_steps(dirname)
     # write_symmetric_remoteness(dirname)
-    estimate_MFPT_with_supernode(dirname)
+    # estimate_MFPT_with_supernode(dirname)
+    analyse_random_walk(dirname)

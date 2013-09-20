@@ -42,6 +42,33 @@ public class Sample {
         return sum / a.size();
     }
 
+    // Given a Hashmap of Hashmaps of values, write out a matrix.
+    public void writeMatrix(ArrayList<String> trees,
+                            HashMap<String, HashMap<String, Double>> vals,
+                            String filename) {
+        try {
+            // Open file
+            FileWriter fw = new FileWriter(filename);
+
+            // for every source tree
+            for (String s: trees) {
+                HashMap<String, Double> vals_s = vals.get(s);
+                // for every destination tree
+                for (String t: trees) {
+                    fw.write(vals_s.get(t) + " ");
+                }
+                fw.write("\n");
+            }
+            
+            fw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+            
+        
+    
+
     // Given a list of trees, write out a matrix of distances between
     // all pairs, for many different types of distance. Can pass in
     // results from a random-walking simulation as mfpte (pass null
@@ -293,8 +320,8 @@ public class Sample {
     // individuals. So it aims to estimate FMPT by simulation rather
     // than exact methods on a sample from the space. FIXME should aim
     // to test this on a known space, eg the 1298-space.
-    public HashMap<String, HashMap<String, Double>>
-        randomWalking(ArrayList<String> ofInterest) {
+    public void randomWalking(ArrayList<String> ofInterest,
+                              String filename) {
 
         // lastOccur holds the individuals of interest as strings and
         // the number of steps since their last occurence, as
@@ -316,22 +343,22 @@ public class Sample {
         }
 
         // set up walkLengths
-        for (String s: lastOccur.keySet()) {
+        for (String s: ofInterest) {
             HashMap<String, ArrayList<Integer>> tmp =
                 new HashMap<String, ArrayList<Integer>>();
-            for (String t: lastOccur.keySet()) {
+            for (String t: ofInterest) {
                 tmp.put(t, new ArrayList<Integer>());
             }
             walkLengths.put(s, tmp);
         }
 
-        // start at one of the individuals of interest -- no reason to
-        // start anywhere else.
+        // start at one of the individuals of interest
         String cs = ofInterest.get(0);
         Tree current = new Tree(cs);
-        
+
+        float lim = 1.0e9f;
         // perform a random walk
-        for (int i = 0; i < 1000; i++) {
+        for (float i = 0.0f; i < lim; i += 1.0f) {
 
             Integer csLastOccur = lastOccur.get(cs);
             if (csLastOccur == null) {
@@ -353,7 +380,9 @@ public class Sample {
                 for (String t: lastOccur.keySet()) {
                     int tLastOccur = lastOccur.get(t);
                     if (tLastOccur != -1) {
-                        walkLengths.get(t).get(cs).add(tLastOccur);
+                        // +1 because if we mutate immediately to
+                        // self, walk length should be 1 (not 0).
+                        walkLengths.get(t).get(cs).add(tLastOccur + 1);
                     }
                 }
                 // Mark the last occurrence as now.
@@ -362,22 +391,34 @@ public class Sample {
 
             current = mutator.mutate(current);
             cs = current.toString();
+
+            if (i % 10000 == 0) {
+                System.out.println("" + i + " of " + lim + " mutations done");
+            }
         }
 
-        // Get the mean walk lengths and return them. FIXME should
-        // possibly consider assuming a distribution, fitting that
-        // distribution, and returning the mean?
-        HashMap<String, HashMap<String, Double>> meanWalkLengths =
-            new HashMap<String, HashMap<String, Double>>();
-        for (String s: lastOccur.keySet()) {
-            HashMap<String, Double> tmp =
-                new HashMap<String, Double>();
+
+        try {
+            // Open file
+            FileWriter fw = new FileWriter(filename);
+        
+            // Write out the samples for each pair, one pair per line, in
+            // the natural order
             for (String t: lastOccur.keySet()) {
-                tmp.put(t, mean(walkLengths.get(t).get(s)));
+                HashMap<String, ArrayList<Integer>> tmp = walkLengths.get(t);
+                for (String s: lastOccur.keySet()) {
+                    fw.write(t + ": ");
+                    fw.write(s + ": ");
+                    for (Integer i: tmp.get(s)) {
+                        fw.write(i + " ");
+                    }
+                    fw.write("\n");
+                }
             }
-            meanWalkLengths.put(s, tmp);
+            fw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        return meanWalkLengths;
     }
 
 
@@ -611,17 +652,14 @@ public class Sample {
                                  "mh_sample_depth_" + maxDepth,
                                  true, null);
             
-        } else if (args.length == 2 && args[0].equals("randomWalkingMatrices")) {
+        } else if (args.length == 2 && args[0].equals("randomWalking")) {
             int maxDepth = new Integer(args[1]);
             // sample some individuals randomly and estimate random
             // walk lengths between them by simulation.
             Sample sample = new Sample(maxDepth);
-            ArrayList<String> ofInterest = sample.sampleUniform(10);
-            HashMap<String, HashMap<String, Double>>
-                hshsali = sample.randomWalking(ofInterest);
-            sample.writeMatrices(ofInterest,
-                                 "random_walking_" + maxDepth,
-                                 true, hshsali);
+            ArrayList<String> ofInterest = sample.sampleUniform(20);
+            sample.randomWalking(ofInterest, "../results/depth_" + maxDepth
+                                 + "/MFPT_random_walking_samples.dat");
 
         } else if (args.length == 2 && args[0].equals("sampleForSuperNode")) {
             int maxDepth = new Integer(args[1]);
