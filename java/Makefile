@@ -35,6 +35,9 @@ rwSampleDepth6:
 mhSampleDepth6:
 	java -cp ${cp} GP.Sample mhSampleMatrices 6
 
+randomWalkingDepth1:
+	java -cp ${cp} GP.Sample randomWalking 1
+
 randomWalkingDepth2:
 	java -cp ${cp} GP.Sample randomWalking 2
 

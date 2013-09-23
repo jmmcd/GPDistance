@@ -320,6 +320,28 @@ public class Sample {
     // individuals. So it aims to estimate FMPT by simulation rather
     // than exact methods on a sample from the space. FIXME should aim
     // to test this on a known space, eg the 1298-space.
+
+    // We only need to save the last occurrence of each of the
+    // individuals of interest. Don't need the complete history, which
+    // may be in the billions. Each time we hit an individual of
+    // interest s, we can save a sampled walklength(t, s) =
+    // lastOccur(s) - lastOccur(t) if we have previously seen t. The
+    // picture is: others -> t -> others -> s. Note that it can happen
+    // that we see t multiple times before seeing s: t0 -> others ->
+    // t1 -> others -> t2 -> others -> s. In that case we should save
+    // (s-t0), but we should not save (s-t1) or (s-t2). We can also
+    // see s multiple times: t -> others -> s0 -> others -> s1 ->
+    // others -> s2. In that case we save (s0-t), but we should not
+    // save (s1-t) or (s2-t). to achieve this, the current
+    // implementation below (lastOccur = new HashMap<String, Long>())
+    // is insufficient -- it will not avoid saving the samples we
+    // shouldn't save. can we use arrays to store? maybe put a limit
+    // of say 100 samples and store in a [][][]?
+
+    // we need to know size of space. the expected ELRW is size/2. if
+    // that's much bigger than the largest feasible walk, then we
+    // can't get good sampling, only biased sampling
+    
     public void randomWalking(ArrayList<String> ofInterest,
                               String filename) {
 
@@ -328,14 +350,15 @@ public class Sample {
         // integers. These are created first.  Then when we're
         // walking, anytime we encounter one of these we learn
         // something about it.
-        HashMap<String, Integer> lastOccur =
-            new HashMap<String, Integer>();
+
+        HashMap<String, Long> lastOccur =
+            new HashMap<String, Long>();
 
         // walkLengths holds pairs of individuals of interest
         // (strings) and a list of samples of walkLengths between
         // them.
-        HashMap<String, HashMap<String, ArrayList<Integer>>> walkLengths =
-            new HashMap<String, HashMap<String, ArrayList<Integer>>>();
+        HashMap<String, HashMap<String, ArrayList<Long>>> walkLengths =
+            new HashMap<String, HashMap<String, ArrayList<Long>>>();
 
         // set up lastOccur
         for (String s: ofInterest) {
@@ -344,10 +367,10 @@ public class Sample {
 
         // set up walkLengths
         for (String s: ofInterest) {
-            HashMap<String, ArrayList<Integer>> tmp =
-                new HashMap<String, ArrayList<Integer>>();
+            HashMap<String, ArrayList<Long>> tmp =
+                new HashMap<String, ArrayList<Long>>();
             for (String t: ofInterest) {
-                tmp.put(t, new ArrayList<Integer>());
+                tmp.put(t, new ArrayList<Long>());
             }
             walkLengths.put(s, tmp);
         }
@@ -356,13 +379,14 @@ public class Sample {
         String cs = ofInterest.get(0);
         Tree current = new Tree(cs);
 
-        float lim = 1.0e9f;
+        long lim = 10000;
         // perform a random walk
-        for (float i = 0.0f; i < lim; i += 1.0f) {
+        for (long i = 0; i < lim; i += 1.0f) {
 
-            Integer csLastOccur = lastOccur.get(cs);
+            Long csLastOccur = lastOccur.get(cs);
             if (csLastOccur == null) {
 
+                System.out.println(cs + " not of interest");
                 // It's not one of our individuals of interest
                 // +1 to all non-negative entries in lastOccur
                 for (String t: lastOccur.keySet()) {
@@ -371,7 +395,11 @@ public class Sample {
                         lastOccur.put(t, lastOccur.get(t) + 1);
                     }
                 }
-                
+                for (String t: lastOccur.keySet()) {
+                    System.out.print(lastOccur.get(t) + " ");
+                }
+                System.out.println("\n");
+
             } else {
                 
                 // It's one of our individuals of interest: for all
@@ -383,10 +411,18 @@ public class Sample {
                         // +1 because if we mutate immediately to
                         // self, walk length should be 1 (not 0).
                         walkLengths.get(t).get(cs).add(tLastOccur + 1);
+                        System.out.println(cs + " of interest: saving " + (tLastOccur+1));
+
                     }
                 }
                 // Mark the last occurrence as now.
                 lastOccur.put(cs, 0);
+
+                for (String t: lastOccur.keySet()) {
+                    System.out.print(lastOccur.get(t) + " ");
+                }
+                System.out.println("\n");
+
             }
 
             current = mutator.mutate(current);
@@ -405,11 +441,11 @@ public class Sample {
             // Write out the samples for each pair, one pair per line, in
             // the natural order
             for (String t: lastOccur.keySet()) {
-                HashMap<String, ArrayList<Integer>> tmp = walkLengths.get(t);
+                HashMap<String, ArrayList<Long>> tmp = walkLengths.get(t);
                 for (String s: lastOccur.keySet()) {
                     fw.write(t + ": ");
                     fw.write(s + ": ");
-                    for (Integer i: tmp.get(s)) {
+                    for (Long i: tmp.get(s)) {
                         fw.write(i + " ");
                     }
                     fw.write("\n");
@@ -657,7 +693,7 @@ public class Sample {
             // sample some individuals randomly and estimate random
             // walk lengths between them by simulation.
             Sample sample = new Sample(maxDepth);
-            ArrayList<String> ofInterest = sample.sampleUniform(20);
+            ArrayList<String> ofInterest = sample.sampleUniform(4);
             sample.randomWalking(ofInterest, "../results/depth_" + maxDepth
                                  + "/MFPT_random_walking_samples.dat");
 
