@@ -219,61 +219,45 @@ public class Sample {
     }
     
 
-    public void estimateTPWithSuperNode(String basename, int reps, int M) {
+    // carry out the estimation of transition probabilities multiple
+    // times for multiple different samples.
+    public void estimateTPWithSuperNode(String basename, int reps, int N) {
         (new File(basename)).mkdirs();
         for (int i = 0; i < reps; i++) {
-            estimateTPBetweenPairWithSuperNode(basename + i, M);
+            int nNeighbours = (N - 2) / 2;
+            // estimateTPBetweenPairWithSuperNode(basename,
+            //                                    samplePairAndNeighbours(nNeighbours));
+            estimateTPBetweenPairWithSuperNode(basename,
+                                               sampleRandomWalk(5, 100, 10));
         }
     }
 
-    public void estimateTPBetweenPairWithSuperNode(String basename, int M) {
+    // Estimate transition probabilities by taking a sample of
+    // individuals and then modelling the rest of the space as a
+    // single "super node". Can calculate the TP into the super node
+    // as 1 minus the sum of all other TPs, etc. But we don't really
+    // care about all these TPs, we really want to estimate MFPT. So
+    // call out to the Python/Numpy code to estimate that. 
+    public void estimateTPBetweenPairWithSuperNode(String basename,
+                                                   ArrayList<String> sample) {
 
-        // Get 2 trees and M neighbours of each into a list
-        int N = 2;
+        int L = sample.size();
         
-        int L = N + N * M; // number of trees in the list
-        
-        ArrayList<Tree> ijAndNeighbours = new ArrayList<Tree>();
-        ArrayList<String> ijAndNeighboursStrings = new ArrayList<String>();
-        
-        for (int i = 0; i < N; i++) {
-            Tree tree = new Tree("x");
-            mutator.grow(tree.getRoot(), maxDepth);
-            ijAndNeighbours.add(tree.clone());
-            ijAndNeighboursStrings.add(tree.toString());
-        }
-        
-        for (int i = 0; i < N; i++) {
-            while (ijAndNeighbours.size() < L) {
-                Tree tree = ijAndNeighbours.get(i);
-                // FIXME this is a horrible bug: have to clone() here,
-                // else the TP can be zero. I think because the TP algorithm
-                // gets confused about ancestor of root.
-                Tree newTree = mutator.mutate(tree).clone();
-                if (ijAndNeighboursStrings.indexOf(newTree.toString()) == -1) {
-                    ijAndNeighbours.add(newTree);
-                    ijAndNeighboursStrings.add(newTree.toString());
-                }
-            }
-        }
-
         try {
 
-            FileWriter ijFile = new FileWriter(basename + "_trees.dat");
-            FileWriter tpFile = new FileWriter(basename + "_TP_estimates.dat");
+            FileWriter tpFile = new FileWriter(basename + "/TP.dat");
         
             float meanRowsum = 0.0f; // sum of inward TPs to supernode over all rows but last
             for (int i = 0; i < L; i++) {
                 float rowsum = 0.0f;
                 for (int j = 0; j < L; j++) {
-                    float tp = mutator.transitionProbability(ijAndNeighbours.get(i),
-                                                             ijAndNeighbours.get(j));
+                    float tp = mutator.transitionProbability(new Tree(sample.get(i)),
+                                                             new Tree(sample.get(j)));
                     rowsum += tp;
                     tpFile.write(tp + " ");
 
-                    // FIXME it seems to get too-large values sometimes
-                    // System.out.println("From " + ijAndNeighbours.get(i));
-                    // System.out.println("To " + ijAndNeighbours.get(j));
+                    // System.out.println("From " + sample.get(i));
+                    // System.out.println("To " + sample.get(j));
                     // System.out.println("TP " + tp);
 
                 }
@@ -299,19 +283,44 @@ public class Sample {
             }
             tpFile.write(meanRowsum + "\n");
 
-            // Write out the two trees of interest, the original centres
-            for (int i = 0; i < 2; i++) {
-                ijFile.write(ijAndNeighbours.get(i).toString() + "\n");
-            }
-            
-            // close files
-            ijFile.close();
+            // close file
             tpFile.close();
         
         } catch (IOException e) {
             e.printStackTrace();
         }
-            
+
+        // Call Python MFPT code. It will read the TP matrix we just
+        // wrote, then write out a new MFPT matrix to the same dir. 
+        try {
+            Process p = Runtime.getRuntime().exec("python ../python/RandomWalks/random_walks.py " + basename);
+            p.waitFor();
+            // BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            // String line=reader.readLine();
+
+        } catch (Exception e) {
+            System.out.println("Error " + e.getMessage());
+        }
+
+        // We can then read estimates of MFPT from it. We'll only read
+        // the first row, and exclude node 0 -> node 0, and exclude
+        // node 0 -> supernode.
+        try {
+            FileReader mfptFile = new FileReader(basename + "/MFPT.dat");
+            LineNumberReader ln = new LineNumberReader(mfptFile);
+            String line = ln.readLine();
+            String[] vals = line.split(" ");
+
+            for (int i = 1; i < vals.length - 1; i++) {
+                String val = vals[i];
+                HashMap<String, Double> distances = getDistances(sample.get(0),
+                                                                 sample.get(i));
+                System.out.println(val + " " + distances.get("TED") + " " + distances.get("FVD") + " " + distances.get("NCD"));
+            }
+        } catch (IOException e) {
+            System.err.println(e.getMessage());
+        }
+
     }
 
     // Estimate the length of a random walk by simulation. This
@@ -362,7 +371,7 @@ public class Sample {
 
         // set up lastOccur
         for (String s: ofInterest) {
-            lastOccur.put(s, -1);
+            lastOccur.put(s, -1L);
         }
 
         // set up walkLengths
@@ -381,7 +390,7 @@ public class Sample {
 
         long lim = 10000;
         // perform a random walk
-        for (long i = 0; i < lim; i += 1.0f) {
+        for (long i = 0; i < lim; i += 1) {
 
             Long csLastOccur = lastOccur.get(cs);
             if (csLastOccur == null) {
@@ -390,8 +399,8 @@ public class Sample {
                 // It's not one of our individuals of interest
                 // +1 to all non-negative entries in lastOccur
                 for (String t: lastOccur.keySet()) {
-                    int tLastOccur = lastOccur.get(t);
-                    if (tLastOccur != -1) {
+                    long tLastOccur = lastOccur.get(t);
+                    if (tLastOccur != -1L) {
                         lastOccur.put(t, lastOccur.get(t) + 1);
                     }
                 }
@@ -406,7 +415,7 @@ public class Sample {
                 // non-negative t in lastOccur, save a sample (t, s)
                 // in walkLengths
                 for (String t: lastOccur.keySet()) {
-                    int tLastOccur = lastOccur.get(t);
+                    long tLastOccur = lastOccur.get(t);
                     if (tLastOccur != -1) {
                         // +1 because if we mutate immediately to
                         // self, walk length should be 1 (not 0).
@@ -416,7 +425,7 @@ public class Sample {
                     }
                 }
                 // Mark the last occurrence as now.
-                lastOccur.put(cs, 0);
+                lastOccur.put(cs, 0L);
 
                 for (String t: lastOccur.keySet()) {
                     System.out.print(lastOccur.get(t) + " ");
@@ -457,6 +466,44 @@ public class Sample {
         }
     }
 
+    // Sample a pair and some neighbours. M is the number of
+    // neighbours of each
+    public ArrayList<String> samplePairAndNeighbours
+        (int M) {
+
+        // Get 2 trees and M neighbours of each into a list
+        int N = 2;
+        
+        int L = N + N * M; // number of trees in the list
+        
+        ArrayList<Tree> ijAndNeighbours = new ArrayList<Tree>();
+        ArrayList<String> ijAndNeighboursStrings = new ArrayList<String>();
+        
+        for (int i = 0; i < N; i++) {
+            Tree tree = new Tree("x");
+            mutator.grow(tree.getRoot(), maxDepth);
+            ijAndNeighbours.add(tree.clone());
+            ijAndNeighboursStrings.add(tree.toString());
+        }
+        
+        for (int i = 0; i < N; i++) {
+            while (ijAndNeighbours.size() < L) {
+                Tree tree = ijAndNeighbours.get(i);
+                // FIXME this is a horrible bug: have to clone() here,
+                // else the TP can be zero or otherwise wrong. I think
+                // because the TP algorithm gets confused about
+                // ancestor of root.
+                Tree newTree = mutator.mutate(tree).clone();
+                if (ijAndNeighboursStrings.indexOf(newTree.toString()) == -1) {
+                    ijAndNeighbours.add(newTree);
+                    ijAndNeighboursStrings.add(newTree.toString());
+                }
+            }
+        }
+
+        return ijAndNeighboursStrings;
+    }
+        
 
 
     // Sample by random-walking. Aim is to collect a sample of size
@@ -705,8 +752,8 @@ public class Sample {
             // single supernode and calculate its distances as well.
             Sample sample = new Sample(maxDepth);
             String basename = ("../results/depth_" + maxDepth
-                               + "/TP_supernode_estimates/");
-            sample.estimateTPWithSuperNode(basename, 50, 10);
+                               + "/TP_supernode_estimates_RW/");
+            sample.estimateTPWithSuperNode(basename, 50, 20);
 
         } else if (args.length == 2 && args[0].equals("sampleOneStepProbabilities")) {
             int maxDepth = new Integer(args[1]);
@@ -716,6 +763,13 @@ public class Sample {
                                               100,
                                               "../results/depth_" + maxDepth + "/TP_sampled.dat"
                                               );
+
+        } else if (args.length == 2 && args[0].equals("testRandomWalk")) {
+            int maxDepth = new Integer(args[1]);
+            Sample sample = new Sample(maxDepth);
+            for (String s: sample.sampleRandomWalk(10, 100, 10)) {
+                System.out.println(s);
+            }
             
         } else {
             System.out.println("Please read the source to see usage.");

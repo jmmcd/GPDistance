@@ -60,6 +60,8 @@ def estimate_MFPT_with_supernode(dirname):
     estimate = np.zeros(2 * n)
     exact = np.genfromtxt(dirname + "/MFPT.dat")
     exact_extract = np.zeros(2 * n)
+    ted = np.genfromtxt(dirname + "/TED.dat")
+    ted_extract = np.zeros(2 * n)
     for i in range(n):
         d = read_transition_matrix(dirname + "/TP_supernode_estimates/"
                                    + str(i) + "_TP_estimates.dat")
@@ -72,7 +74,10 @@ def estimate_MFPT_with_supernode(dirname):
         estimate[2*i+1] = m[1, 0]
         exact_extract[2*i] = exact[ti, si]
         exact_extract[2*i+1] = exact[si, ti]
+        ted_extract[2*i] = ted[ti, si]
+        ted_extract[2*i+1] = ted[si, ti]
     np.savetxt(dirname + "/MFPT_supernode_estimate.dat", estimate)
+    np.savetxt(dirname + "/TED_extract_for_supernode_estimate.dat", ted_extract)
     np.savetxt(dirname + "/MFPT_exact_for_supernode_estimate.dat", exact_extract)
 
 def normalise_by_row(d):
@@ -465,7 +470,7 @@ if __name__ == "__main__":
         generate_ga_tm(dirname)
     else:
         generate_ga_tm(dirname, 0.1)
-    # read_and_get_dtp_mfpt_sp_steps(dirname)
+    read_and_get_dtp_mfpt_sp_steps(dirname)
     # write_symmetric_remoteness(dirname)
     # estimate_MFPT_with_supernode(dirname)
-    analyse_random_walk(dirname)
+    # analyse_random_walk(dirname)

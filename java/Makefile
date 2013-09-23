@@ -7,6 +7,9 @@ all:
 testTP:
 	java -Xmx512m -cp ${cp} GP.Mutation "(+ x (+ y y))" "y"
 
+testRandomWalk:
+	java -Xmx512m -cp ${cp} GP.Sample testRandomWalk 4
+
 mh:
 	java -Xmx512m -cp ${cp} GP.Sample metro
 
@@ -46,6 +49,9 @@ randomWalkingDepth6:
 
 sampleForSuperNodeDepth2:
 	java -cp ${cp} GP.Sample sampleForSuperNode 2
+
+sampleForSuperNodeDepth6:
+	java -cp ${cp} GP.Sample sampleForSuperNode 6
 
 sampleOneStepProbabilitiesDepth1:
 	java -cp ${cp} GP.Sample sampleOneStepProbabilities 1
