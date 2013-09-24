@@ -7,8 +7,11 @@ completeMatricesDepth1:
 completeMatricesDepth2:
 	cd RandomWalks && ./random_walks.py ../../results/depth_2/
 
-completeMatricesGALength4::
+completeMatricesGALength4:
 	cd RandomWalks && ./random_walks.py ../../results/ga_length_4/
+
+completeMatricesGALength4PerInd:
+	cd RandomWalks && ./random_walks.py ../../results/ga_length_4_per_ind/
 
 compareTPCalculatedVSampledDepth1:
 	cd RandomWalks && ./plotting.py compareTPCalculatedVSampled ../../results/depth_1
@@ -37,6 +40,9 @@ makeGridPlotsDepth2:
 makeGridPlotsGALength4:
 	cd RandomWalks && ./plotting.py makeGridPlots ../../results/ga_length_4
 
+makeGridPlotsGALength4PerInd:
+	cd RandomWalks && ./plotting.py makeGridPlots ../../results/ga_length_4_per_ind
+
 makeCorrelationTableDepth1:
 	cd RandomWalks && ./plotting.py makeCorrelationTable ../../results/depth_1 "GP Depth 1"
 
@@ -45,6 +51,9 @@ makeCorrelationTableDepth2:
 
 makeCorrelationTableGALength4:
 	cd RandomWalks && ./plotting.py makeCorrelationTable ../../results/ga_length_4 "GA Length 4"
+
+makeCorrelationTableGALength4PerInd:
+	cd RandomWalks && ./plotting.py makeCorrelationTable ../../results/ga_length_4_per_ind "GA Length 4 per-individual"
 
 uniformSampleDepth6:
 	cd RandomWalks && ./random_walks.py graphDistances ../../results/uniform_depth_6/

@@ -16,13 +16,13 @@ import random
 class MyLocator(mpl.ticker.IndexLocator):
     MAXTICKS=1500
 
-graph_distance_names = ["D_TP", "STP", "MFPT", "SP", "STEPS",
-                        "CT", "MFPT_VLA", "CT_VLA",
-                        "SD_TP"
+graph_distance_names = ["D_TP", "SD_TP",
+                        "MFPT", "CT", "MFPT_VLA", "CT_VLA",
+                        "SP", "STEPS",
                         ]
-graph_distance_tex_names = ["$D_{\mathrm{TP}}$", "STP", "MFPT", "SP", "STEPS",
-                            "CT", "MFPT-VLA", "CT-VLA",
-                            r"S$D_{TP}$"
+graph_distance_tex_names = ["$D_{\mathrm{TP}}$", r"S$D_{\mathrm{TP}}$",
+                            "MFPT", "CT", "MFPT-VLA", "CT-VLA",
+                            "SP", "STEPS",
                             ]
 
 def make_grid_plots(dirname):
@@ -194,19 +194,19 @@ def make_correlation_tables(dirname, txt=""):
         m = np.genfromtxt(dirname + "/" + name + ".dat")
         d[name] = m.reshape(len(m)**2)
 
-    def do_line(syn):
-        line = syn.replace("_TP", r"$_{\mathrm{TP}}$")
+    def do_line(dist, dist_name):
+        line = dist_name.replace("_TP", r"$_{\mathrm{TP}}$")
         for graph_distance in graph_distance_names:
-            print("getting association between " + graph_distance + " " + syn)
+            print("getting association between " + graph_distance + " " + dist)
             if corr_type == "spearmanrho":
-                corr, p = get_spearman_rho(d[graph_distance], d[syn])
+                corr, p = get_spearman_rho(d[graph_distance], d[dist])
             elif corr_type == "kendalltau":
-                corr, p = get_kendall_tau(d[graph_distance], d[syn])
+                corr, p = get_kendall_tau(d[graph_distance], d[dist])
             elif corr_type == "pearsonr":
-                corr, p = get_pearson_r(d[graph_distance], d[syn])
+                corr, p = get_pearson_r(d[graph_distance], d[dist])
             else:
                 print("Unknown correlation type " + corr_type)
-            if p < 0.05:
+            if corr > 0.0 and p < 0.05:
                 sig = "*"
             else:
                 sig = " "
@@ -221,7 +221,7 @@ def make_correlation_tables(dirname, txt=""):
         filename = dirname + "/correlation_table_" + corr_type + ".tex"
         f = open(filename, "w")
 
-        f.write(r"""\begin{table}
+        f.write(r"""\begin{table*}
 \centering
 \caption{Correlations between distance measures """)
         if corr_type == "spearmanrho":
@@ -232,22 +232,22 @@ def make_correlation_tables(dirname, txt=""):
             f.write("using Kendall's tau: ")
         f.write(txt)
         f.write(r"""\label{tab:correlationresults_""" + os.path.basename(dirname) + "}}\n")
-        f.write(r"""\begin{tabular}{l|l|l|l|l}
-     & """ + " & ".join(graph_distance_tex_names)  + """\\
+        f.write(r"""\begin{tabular}{""" + "|".join("l" for i in range(1+len(graph_distance_names))) + r"""}
+     & """ + " & ".join(graph_distance_tex_names)  + r"""\\
 \hline
 \hline
 """)
 
-        for graph_distance in graph_distance_names:
-            do_line(graph_distance)
+        for name, tex_name in zip(graph_distance_names, graph_distance_tex_names):
+            do_line(name, tex_name)
         f.write(r"""\hline
 \hline
 """)
         for syn in syntactic_distance_names:
-            do_line(syn)
+            do_line(syn, syn)
 
         f.write(r"""\end{tabular}
-\end{table}""")
+\end{table*}""")
 
     f.close()
 
