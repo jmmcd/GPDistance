@@ -324,7 +324,11 @@ def make_mds_images(dirname):
     must be symmetric. Must not contain any infinities, which prevents
     SD_TP in a space like ga_length_4_per_ind."""
 
-    for name in ["CT", "SD_TP", "TED", "TAD0", "OVD", "FVD"]:
+    if "depth" in dirname:
+        names = ["CT", "SD_TP", "TED", "TAD0", "OVD", "FVD"]
+    else:
+        names = ["CT", "SD_TP", "Hamming"]
+    for name in names:
         m = np.genfromtxt(dirname + "/" + name + ".dat")
         make_mds_image(m, dirname + "/" + name + "_MDS")
     

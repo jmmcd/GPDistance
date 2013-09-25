@@ -64,3 +64,12 @@ rwSampleDepth6:
 mhSampleDepth6:
 	cd RandomWalks && ./random_walks.py graphDistances ../../results/mh_sample_depth_6/
 
+makeMDSIMagesDepth2:
+	cd RandomWalks && ./plotting.py makeMDSImages ../../results/depth_2/
+
+makeMDSIMagesGALength4:
+	cd RandomWalks && ./plotting.py makeMDSImages ../../results/ga_length_4/
+
+makeMDSIMagesGALength4PerInd:
+	cd RandomWalks && ./plotting.py makeMDSImages ../../results/ga_length_4_per_ind/
+
