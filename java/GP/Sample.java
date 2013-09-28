@@ -327,118 +327,121 @@ public class Sample {
     // function doesn't collect a sample of individuals. It just
     // performs walks and saves the number of steps between pairs of
     // individuals. So it aims to estimate FMPT by simulation rather
-    // than exact methods on a sample from the space. FIXME should aim
-    // to test this on a known space, eg the 1298-space.
+    // than exact methods on a sample from the space.
 
-    // We only need to save the last occurrence of each of the
-    // individuals of interest. Don't need the complete history, which
-    // may be in the billions. Each time we hit an individual of
-    // interest s, we can save a sampled walklength(t, s) =
-    // lastOccur(s) - lastOccur(t) if we have previously seen t. The
-    // picture is: others -> t -> others -> s. Note that it can happen
-    // that we see t multiple times before seeing s: t0 -> others ->
-    // t1 -> others -> t2 -> others -> s. In that case we should save
-    // (s-t0), but we should not save (s-t1) or (s-t2). We can also
-    // see s multiple times: t -> others -> s0 -> others -> s1 ->
-    // others -> s2. In that case we save (s0-t), but we should not
-    // save (s1-t) or (s2-t). to achieve this, the current
-    // implementation below (lastOccur = new HashMap<String, Long>())
-    // is insufficient -- it will not avoid saving the samples we
-    // shouldn't save. can we use arrays to store? maybe put a limit
-    // of say 100 samples and store in a [][][]?
+    // I wrote up a blog post explaining the difficulties of this
+    // algorithm here:
 
-    // we need to know size of space. the expected ELRW is size/2. if
-    // that's much bigger than the largest feasible walk, then we
-    // can't get good sampling, only biased sampling
+    // The basic idea is: Each time we hit an individual of interest
+    // t, we can save a sampled walklength(s, t) = lastOccur(t) -
+    // lastOccur(s) if we have previously seen s. The picture is:
+    // others -> s -> others -> t. Note that it can happen that we see
+    // s multiple times before seeing t: s0 -> others -> s1 -> others
+    // -> s2 -> others -> t. In that case we should save (t-s0), but
+    // we should not save (t-s1) or (t-s2). We can also see t multiple
+    // times: s -> others -> t0 -> others -> t1 -> others -> t2. In
+    // that case we save (t0-s), but we should not save (t1-s) or
+    // (t2-s).
+
+    // We can accomplish this by good book-keeping. They key idea is
+    // we can't be in a walk from u to v and from v to u at the same
+    // time. Can't be in two walks from u to v at the same time. the
+    // variable rwStarted[u][v] means the time-step at which a walk
+    // from u to v started. If we encounter u again before v, that is
+    // *not* the start of a new walk from u to v. We save a sample
+    // only when a walk ends on v, and then record that a new walk is
+    // starting from v.
     
-    public void randomWalking(ArrayList<String> ofInterest,
-                              String filename) {
+    public void randomWalking(
+                              int nsteps,
+                              ArrayList<String> selected,
+                              int nsaves,
+                              String filename
+                              ) {
 
-        // lastOccur holds the individuals of interest as strings and
-        // the number of steps since their last occurence, as
-        // integers. These are created first.  Then when we're
-        // walking, anytime we encounter one of these we learn
-        // something about it.
+        // HashMap<String, Integer> stringToIndex = new HashMap<String, Integer>();
 
-        HashMap<String, Long> lastOccur =
-            new HashMap<String, Long>();
+        int n = selected.size();
+        
+        // for each pair of individuals (u, v) in selected, rwStarted
+        // holds the time-step at which the rw from u to v began. if
+        // we see i several times in a row before seeing j, then only
+        // the *first* is relevant
+        long[][] rwStarted = new long[n][n];
+        int[][] placeToSave = new int[n][n];
+        
+        // for each pair of individuals in selected, walkLengths
+        // holds samples of walkLengths between them.
+        long[][][] walkLengths = new long[n][n][nsaves];
+        
+        // // set up the various matrices
+        // for (int i = 0; i < n; i++) {
+        //     stringToIndex.put(selected.get(i), i);
+        // }
 
-        // walkLengths holds pairs of individuals of interest
-        // (strings) and a list of samples of walkLengths between
-        // them.
-        HashMap<String, HashMap<String, ArrayList<Long>>> walkLengths =
-            new HashMap<String, HashMap<String, ArrayList<Long>>>();
-
-        // set up lastOccur
-        for (String s: ofInterest) {
-            lastOccur.put(s, -1L);
-        }
-
-        // set up walkLengths
-        for (String s: ofInterest) {
-            HashMap<String, ArrayList<Long>> tmp =
-                new HashMap<String, ArrayList<Long>>();
-            for (String t: ofInterest) {
-                tmp.put(t, new ArrayList<Long>());
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                rwStarted[i][j] = -1;
+                placeToSave[i][j] = 0;
+                for (int k = 0; k < nsaves; k++) {
+                    walkLengths[i][j][k] = -1;
+                }
             }
-            walkLengths.put(s, tmp);
         }
 
         // start at one of the individuals of interest
-        String cs = ofInterest.get(0);
-        Tree current = new Tree(cs);
+        String sv = selected.get(0);
+        Tree tv = new Tree(sv);
 
-        long lim = 10000;
-        // perform a random walk
-        for (long i = 0; i < lim; i += 1) {
+        for (long t = 0; t < nsteps; t += 1) {
+            System.out.println("");
+            
+            int v = selected.indexOf(sv);
+            if (v != -1) {
 
-            Long csLastOccur = lastOccur.get(cs);
-            if (csLastOccur == null) {
+                // when we see an individual sv of interest
+                for (int u = 0; u < n; u++) {
 
-                System.out.println(cs + " not of interest");
-                // It's not one of our individuals of interest
-                // +1 to all non-negative entries in lastOccur
-                for (String t: lastOccur.keySet()) {
-                    long tLastOccur = lastOccur.get(t);
-                    if (tLastOccur != -1L) {
-                        lastOccur.put(t, lastOccur.get(t) + 1);
+                    String su = selected.get(u);
+
+                    if (rwStarted[u][v] == rwStarted[v][u] &&
+                        rwStarted[u][v] == -1) {
+
+                        rwStarted[v][u] = t;
+
+                    } else if (rwStarted[u][v] > -1) {
+                        // we are currently in a walk from u to v,
+                        // have now reached v, so if we haven't
+                        // already collected plenty of (u, v) samples
+                        // then collect this one
+                        int i = placeToSave[u][v];
+                        if (i < nsaves) {
+                            walkLengths[u][v][i] = (t - rwStarted[u][v]);
+                            placeToSave[u][v] += 1;
+                        }
+
+                        // now start a walk from v to u. note the
+                        // order of these two assignments: does the
+                        // right thing in the case of v == u, ie on
+                        // diagonal
+                        rwStarted[u][v] = -1;
+                        rwStarted[v][u] = t;
+                        
+                    } else if (rwStarted[v][u] > -1) {
+                        // do nothing
+                        
+                    } else {
+                        System.out.println("Unexpected, in a walk from u and v and v to u at the same time?");
+                        System.exit(1);
                     }
                 }
-                for (String t: lastOccur.keySet()) {
-                    System.out.print(lastOccur.get(t) + " ");
-                }
-                System.out.println("\n");
-
-            } else {
-                
-                // It's one of our individuals of interest: for all
-                // non-negative t in lastOccur, save a sample (t, s)
-                // in walkLengths
-                for (String t: lastOccur.keySet()) {
-                    long tLastOccur = lastOccur.get(t);
-                    if (tLastOccur != -1) {
-                        // +1 because if we mutate immediately to
-                        // self, walk length should be 1 (not 0).
-                        walkLengths.get(t).get(cs).add(tLastOccur + 1);
-                        System.out.println(cs + " of interest: saving " + (tLastOccur+1));
-
-                    }
-                }
-                // Mark the last occurrence as now.
-                lastOccur.put(cs, 0L);
-
-                for (String t: lastOccur.keySet()) {
-                    System.out.print(lastOccur.get(t) + " ");
-                }
-                System.out.println("\n");
-
             }
 
-            current = mutator.mutate(current);
-            cs = current.toString();
+            tv = mutator.mutate(tv);
+            sv = tv.toString();
 
-            if (i % 10000 == 0) {
-                System.out.println("" + i + " of " + lim + " mutations done");
+            if (t % 10000 == 0) {
+                System.out.println("" + t + " of " + nsaves + " mutations done");
             }
         }
 
@@ -449,13 +452,16 @@ public class Sample {
         
             // Write out the samples for each pair, one pair per line, in
             // the natural order
-            for (String t: lastOccur.keySet()) {
-                HashMap<String, ArrayList<Long>> tmp = walkLengths.get(t);
-                for (String s: lastOccur.keySet()) {
-                    fw.write(t + ": ");
-                    fw.write(s + ": ");
-                    for (Long i: tmp.get(s)) {
-                        fw.write(i + " ");
+            for (int tidx = 0; tidx < n; tidx++) {
+                for (int sidx = 0; sidx < n; sidx++) {
+                    String tt = selected.get(tidx);
+                    String ss = selected.get(sidx);
+                    fw.write(tt + ": ");
+                    fw.write(ss + ": ");
+                    for (Long i: walkLengths[sidx][tidx]) {
+                        if (i > -1) {
+                            fw.write(i + " ");
+                        }
                     }
                     fw.write("\n");
                 }
@@ -741,7 +747,8 @@ public class Sample {
             // walk lengths between them by simulation.
             Sample sample = new Sample(maxDepth);
             ArrayList<String> ofInterest = sample.sampleUniform(4);
-            sample.randomWalking(ofInterest, "../results/depth_" + maxDepth
+            sample.randomWalking(1000, ofInterest, 10,
+                                 "/Users/jmmcd/results/depth_" + maxDepth
                                  + "/MFPT_random_walking_samples.dat");
 
         } else if (args.length == 2 && args[0].equals("sampleForSuperNode")) {
