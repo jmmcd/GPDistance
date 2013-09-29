@@ -154,7 +154,7 @@ public class Sample {
     }
 
 
-    public ArrayList<String> sampleUniform(int n) {
+    public ArrayList<String> sampleByGrow(int n) {
 
         ArrayList<String> retval = new ArrayList<String>();
         while (retval.size() < n) {
@@ -721,7 +721,7 @@ public class Sample {
             // sample some individuals randomly and get distances
             // between them.
             Sample sample = new Sample(maxDepth);
-            ArrayList<String> ofInterest = sample.sampleUniform(10);
+            ArrayList<String> ofInterest = sample.sampleByGrow(10);
             sample.writeMatrices(ofInterest,
                                  "uniform_depth_" + maxDepth,
                                  true, null);
@@ -750,7 +750,7 @@ public class Sample {
             // sample some individuals randomly and estimate random
             // walk lengths between them by simulation.
             Sample sample = new Sample(maxDepth);
-            ArrayList<String> ofInterest = sample.sampleUniform(40);
+            ArrayList<String> ofInterest = sample.sampleByGrow(40);
             sample.randomWalking(10000, ofInterest, 10);
 
         } else if (args.length == 2 && args[0].equals("sampleForSuperNode")) {
