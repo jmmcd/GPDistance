@@ -329,8 +329,8 @@ public class Sample {
     // individuals. So it aims to estimate FMPT by simulation rather
     // than exact methods on a sample from the space.
 
-    // I wrote up a blog post explaining the difficulties of this
-    // algorithm here:
+    // I wrote up a blog post explaining this algorithm here:
+    // http://jmmcd.net/2013/09/28/simulating-random-walks.html
 
     // The basic idea is: Each time we hit an individual of interest
     // t, we can save a sampled walklength(s, t) = lastOccur(t) -
@@ -355,8 +355,7 @@ public class Sample {
     public void randomWalking(
                               int nsteps,
                               ArrayList<String> selected,
-                              int nsaves,
-                              String filename
+                              int nsaves
                               ) {
 
         // HashMap<String, Integer> stringToIndex = new HashMap<String, Integer>();
@@ -394,7 +393,7 @@ public class Sample {
         Tree tv = new Tree(sv);
 
         for (long t = 0; t < nsteps; t += 1) {
-            System.out.println("");
+            // System.out.println("");
             
             int v = selected.indexOf(sv);
             if (v != -1) {
@@ -441,35 +440,40 @@ public class Sample {
             sv = tv.toString();
 
             if (t % 10000 == 0) {
-                System.out.println("" + t + " of " + nsaves + " mutations done");
+                System.out.println("" + t + " of " + nsteps + " mutations done");
             }
         }
 
-
-        try {
-            // Open file
-            FileWriter fw = new FileWriter(filename);
+        HashMap<String, HashMap<String, Double>> mfpte = new HashMap<String, HashMap<String, Double>>();
         
-            // Write out the samples for each pair, one pair per line, in
-            // the natural order
-            for (int tidx = 0; tidx < n; tidx++) {
-                for (int sidx = 0; sidx < n; sidx++) {
-                    String tt = selected.get(tidx);
-                    String ss = selected.get(sidx);
-                    fw.write(tt + ": ");
-                    fw.write(ss + ": ");
-                    for (Long i: walkLengths[sidx][tidx]) {
-                        if (i > -1) {
-                            fw.write(i + " ");
-                        }
+        for (int uidx = 0; uidx < n; uidx++) {
+            String u = selected.get(uidx);
+            mfpte.put(u, new HashMap<String, Double>());
+            for (int vidx = 0; vidx < n; vidx++) {
+                String v = selected.get(vidx);
+
+                int nsaved = 0;
+                double sum = 0.0;
+                for (Long i: walkLengths[vidx][uidx]) {
+                    if (i > -1) {
+                        nsaved += 1;
+                        sum += i;
                     }
-                    fw.write("\n");
+                }
+
+                // 5 is a bit arbitrary... definitely shouldn't be fewer
+                if (nsaved > 5) {
+                    mfpte.get(u).put(v, sum / nsaved);
+                } else {
+                    mfpte.get(u).put(v, -1.0);
                 }
             }
-            fw.close();
-        } catch (IOException e) {
-            e.printStackTrace();
         }
+        
+        writeMatrices(selected,
+                      "depth_" + maxDepth + "/estimate_MFPT_using_RW",
+                      true,
+                      mfpte);
     }
 
     // Sample a pair and some neighbours. M is the number of
@@ -746,10 +750,8 @@ public class Sample {
             // sample some individuals randomly and estimate random
             // walk lengths between them by simulation.
             Sample sample = new Sample(maxDepth);
-            ArrayList<String> ofInterest = sample.sampleUniform(4);
-            sample.randomWalking(1000, ofInterest, 10,
-                                 "/Users/jmmcd/results/depth_" + maxDepth
-                                 + "/MFPT_random_walking_samples.dat");
+            ArrayList<String> ofInterest = sample.sampleUniform(40);
+            sample.randomWalking(10000, ofInterest, 10);
 
         } else if (args.length == 2 && args[0].equals("sampleForSuperNode")) {
             int maxDepth = new Integer(args[1]);
