@@ -284,6 +284,67 @@ def get_Boley_undirected(tp):
 def is_symmetric(x):
     return np.allclose(x, x.T)
 
+def Von_Luxburg_amplified_commute_wrapper(dirname):
+    # The following requires a symmetric adjacency matrix so we read
+    # TP.dat and symmetrize it. can't use the CT.dat which has been
+    # written-out, because that corresponds to TP.dat. have to
+    # re-calculate CT (done inside the function).
+    tp = np.genfromtxt(dirname + "/TP.dat")
+    stp = (tp + tp.T) / 2.0
+    ct_amp = Von_Luxburg_amplified_commute(stp)
+    outfilename = dirname + "/CT_amp.dat"
+    np.savetxt(outfilename, ct_amp)
+
+def get_commute_distance_using_Laplacian(S):
+    assert np.allclose(S, S.T)
+
+    n = S.shape[0]
+    # compute global graph laplacian: 
+    d = np.sum(S,1)
+    D = np.diag(d)
+    L = (D - S)
+    dinv = 1./ np.sum(S, 0)
+    
+    Linv = linalg.inv(L + np.ones(L.shape)/n) - np.ones(L.shape)/n
+
+    Linv_diag = np.diag(Linv).reshape((n, 1))
+    Rexact = Linv_diag * np.ones((1, n)) + np.ones((n, 1)) * Linv_diag.T - 2 * Linv
+    
+    # convert from a resistance distance to a commute time distance
+    vol = np.sum(S)
+    Rexact *= vol
+    
+    return Rexact
+
+def Von_Luxburg_amplified_commute(A):
+    R = get_commute_distance_using_Laplacian(A)
+    # FIXME should be able to use our existing MFPT and scale by the
+    # right constant to get R:
+    
+    # mfpt = get_mfpt(A)
+    # R = mfpt + mfpt.T
+    # # convert our commute time to a resistance distance as used by VL
+    # R /= vol 
+
+    n = A.shape[0]
+    
+    # compute commute time limit expression:
+    d = np.sum(A, 1)    
+    Rlimit = np.tile((1. / d), (n, 1)).T + np.tile((1. / d), (n, 1))
+
+    # compute correction term u_{ij}: 
+    tmp = np.tile(np.diag(A), (n, 1)).T / np.tile(d, (n, 1))
+    tmp2 = np.tile(d, (n, 1)).T * np.tile(d, (n, 1))
+    uAu = tmp + tmp.T - 2 * A / tmp2
+
+    # compute amplified commute: 
+    tmp3 = R - Rlimit - uAu
+
+    # enforce 0 diagonal: 
+    D = tmp3 - np.diag(np.diag(tmp3))
+
+    return D
+
 def read_and_get_Von_Luxburg_approximations(dirname):
     # assumes TP and MFPT have been calculated and written out already
     t = read_transition_matrix(dirname + "/TP.dat")
@@ -311,36 +372,6 @@ def read_and_get_Von_Luxburg_approximations(dirname):
     set_self_transition_zero(ct_vla)
     outfilename = dirname + "/CT_VLA.dat"
     np.savetxt(outfilename, ct_vla)
-
-    # The following requires a symmetric transition matrix, so we'll
-    # comment it out for now.
-
-    # compute commute time limit expression: 
-    # d = sum(A, 2); 
-    # Rlimit = repmat( (1./d ),1,n)+repmat( (1./d)',n,1);
-
-    # % compute correction term u_{ij}: 
-    # tmp = repmat(diag(A), 1, n) ./ (repmat(d.^2, 1, n)); 
-    # tmp2 = repmat(d, 1, n) .* repmat(d', n, 1); 
-    # uAu =  tmp + tmp' - 2 * A ./ tmp2; 
-
-    # % compute amplified commute: 
-    # tmp = R  - Rlimit - uAu; 
-
-    # % enforce 0 diagonal: 
-    # D= tmp - diag(diag(tmp));
-    
-    # R = mfpt / vol_G
-    # S = R - d_u - d_v
-    # # t is the adjacency matrix
-    # t_diag = np.diag(t)
-    # t_ii = t_diag
-    # t_jj = t_diag.T
-    # u = 2 * t / (d_u * d_v) - t_ii / d_u**2  - t_jj / d_v**2
-    # C_amp = S + u
-    # set_self_transition_zero(C_amp)
-    # outfilename = dirname + "/C_amp.dat"
-    # np.savetxt(outfilename, C_amp)
     
 
 def Laplacian_matrix(A):
