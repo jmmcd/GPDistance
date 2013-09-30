@@ -296,13 +296,9 @@ def Von_Luxburg_amplified_commute_wrapper(dirname):
     np.savetxt(outfilename, ct_amp)
 
 def get_commute_distance_using_Laplacian(S):
-    assert np.allclose(S, S.T)
 
     n = S.shape[0]
-    # get laplacian L
-    d = np.sum(S,1)
-    D = np.diag(d)
-    L = (D - S)
+    L = Laplacian_matrix(S)
     dinv = 1./ np.sum(S, 0)
     
     Linv = linalg.inv(L + np.ones(L.shape)/n) - np.ones(L.shape)/n
@@ -385,6 +381,7 @@ array([[ 2., -1.,  0.,  0., -1.,  0.],
        [-1., -1.,  0., -1.,  3.,  0.],
        [ 0.,  0.,  0., -1.,  0.,  1.]])
 """
+    assert is_symmetric(A)
     I=np.identity(A.shape[0])
     D=I*np.sum(A,axis=1)
     L=D-A
