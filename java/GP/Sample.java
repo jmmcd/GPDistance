@@ -42,45 +42,33 @@ public class Sample {
         return sum / a.size();
     }
 
-    // Given a Hashmap of Hashmaps of values, write out a matrix.
-    public void writeMatrix(ArrayList<String> trees,
-                            HashMap<String, HashMap<String, Double>> vals,
+    // write out a matrix of values
+    public void writeMatrix(double [][]vals,
                             String filename) {
         try {
             // Open file
             FileWriter fw = new FileWriter(filename);
 
-            // for every source tree
-            for (String s: trees) {
-                HashMap<String, Double> vals_s = vals.get(s);
-                // for every destination tree
-                for (String t: trees) {
-                    fw.write(vals_s.get(t) + " ");
+            for (int s = 0; s < vals.length; s++) {
+                for (int t = 0; t < vals[s].length; t++) {
+                    fw.write(vals[s][t] + " ");
                 }
                 fw.write("\n");
             }
-            
             fw.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
-            
-        
-    
 
     // Given a list of trees, write out a matrix of distances between
-    // all pairs, for many different types of distance. Can pass in
-    // results from a random-walking simulation as mfpte (pass null
-    // otherwise).
+    // all pairs, for many different types of distance.
     public void writeMatrices(ArrayList<String> trees,
                               String codename,
-                              boolean writeNonNormalised,
-                              HashMap<String, HashMap<String, Double>> mfpte
+                              boolean writeNonNormalised
                               ) {
 
-        ArrayList<String> distanceNames = new ArrayList<String>();
-        String _distanceNames[] = {
+        String distanceNames[] = {
             "TP", "NCD", "FVD",
             "NodeCount", "MinDepth", "MeanDepth", "MaxDepth",
             "Symmetry", "MeanFanout", "DiscreteMetric",
@@ -89,71 +77,52 @@ public class Sample {
             "OVD"
         };
 
-        for (String d: _distanceNames) {
-            distanceNames.add(d);
+        int n = trees.size();
+        
+        HashMap<String, double[][]> valss = new HashMap<String, double[][]>();
+        for (String distance: distanceNames) {
+            valss.put(distance, new double[n][n]);
         }
 
-        if (mfpte != null) {
-            distanceNames.add("MFPTE");
-        }        
-
-        HashMap<String, FileWriter> files = new HashMap<String, FileWriter>();
-        try {
-            // Open files
-            for (String distance: distanceNames) {
-
-                // write to ../results/<codename>/<distance>.dat
-                String dirname = "../results/" + codename + "/";
-                (new File(dirname)).mkdirs();
-                String filename;
-                if (distance.equals("TP") && writeNonNormalised) {
-                    // Since we're sampling from the space, the
-                    // transition probabilities won't sum to 1. So
-                    // save to _nonnormalised.
-                    filename = dirname + "TP_nonnormalised.dat";
-                } else {
-                    filename = dirname + distance + ".dat";
-                }
-                files.put(distance, new FileWriter(filename)); 
-            }
-
-            // for every source tree
-            for (String s: trees) {
-                // for every destination tree
-                for (String t: trees) {
-
-                    // Get distances...
-                    HashMap<String, Double> distances = getDistances(s, t);
-
-                    // ...hack in the mfpte value if there is one,
-                    // else zero...
-                    if (mfpte != null) {
-                        distances.put("MFPTE", mfpte.get(s).get(t));
-                    }
-
-                    // ... and write them out
-                    for (String distance: distanceNames) {
-                        files.get(distance).write(distances.get(distance) + " ");
-                    }
-                }
-                // write a newline
+        // for every source tree
+        for (int si = 0; si < trees.size(); si++) {
+            String s = trees.get(si);
+            
+            // for every destination tree
+            for (int ti = 0; ti < trees.size(); ti++) {
+                String t = trees.get(ti);
+                 
+                // Get distances...
+                HashMap<String, Double> distances = getDistances(s, t);
+                
+                // put them into the matrices
                 for (String distance: distanceNames) {
-                    files.get(distance).write("\n");
+                    valss.get(distance)[si][ti] = distances.get(distance);
                 }
             }
-
-            // close files
-            for (String distance: distanceNames) {
-                files.get(distance).close();
-            }
-        
-        } catch (IOException e) {
-            e.printStackTrace();
         }
-        
+
+        for (String distance: distanceNames) {
+
+            // write to ../results/<codename>/<distance>.dat
+            String dirname = "../results/" + codename + "/";
+            (new File(dirname)).mkdirs();
+            String filename;
+            if (distance.equals("TP") && writeNonNormalised) {
+                // Since we're sampling from the space, the
+                // transition probabilities won't sum to 1. So
+                // save to _nonnormalised.
+                filename = dirname + "TP_nonnormalised.dat";
+            } else {
+                filename = dirname + distance + ".dat";
+            }
+            
+            writeMatrix(valss.get(distance), filename);
+        }
+            
     }
 
-
+    // This is non-uniform sampling
     public ArrayList<String> sampleByGrow(int n) {
 
         ArrayList<String> retval = new ArrayList<String>();
@@ -167,11 +136,6 @@ public class Sample {
         }
         return retval;
     }
-
-
-    // TODO alternative methods of deriving an estimate of FMPT for
-    // pairs of nodes to confirm the FMPT calculations?
-    
 
     // For each individual, calculate many mutations, and make an
     // estimate of the transition probabilities
@@ -358,8 +322,6 @@ public class Sample {
                               int nsaves
                               ) {
 
-        // HashMap<String, Integer> stringToIndex = new HashMap<String, Integer>();
-
         int n = selected.size();
         
         // for each pair of individuals (u, v) in selected, rwStarted
@@ -444,11 +406,12 @@ public class Sample {
             }
         }
 
-        HashMap<String, HashMap<String, Double>> mfpte = new HashMap<String, HashMap<String, Double>>();
-        
+        double mfpte[][] = new double[n][n];
+        double mfpte_stddev[][] = new double[n][n];
+        double mfpte_len[][] = new double[n][n];
+
         for (int uidx = 0; uidx < n; uidx++) {
             String u = selected.get(uidx);
-            mfpte.put(u, new HashMap<String, Double>());
             for (int vidx = 0; vidx < n; vidx++) {
                 String v = selected.get(vidx);
 
@@ -460,20 +423,28 @@ public class Sample {
                         sum += i;
                     }
                 }
-
-                // 5 is a bit arbitrary... definitely shouldn't be fewer
-                if (nsaved > 5) {
-                    mfpte.get(u).put(v, sum / nsaved);
-                } else {
-                    mfpte.get(u).put(v, -1.0);
+                double mean = sum / nsaved;
+                double var = 0.0;
+                for (Long i: walkLengths[vidx][uidx]) {
+                    if (i > -1) {
+                        var += (i - mean) * (i - mean);
+                    }
                 }
+                var /= nsaved;
+                var = sqrt(var);
+                
+                mfpte[uidx][vidx] = mean;
+                mfpte_stddev[uidx][vidx] = var;
+                mfpte_len[uidx][vidx] = (double) nsaved;
             }
         }
         
         writeMatrices(selected,
                       "depth_" + maxDepth + "/estimate_MFPT_using_RW",
-                      true,
-                      mfpte);
+                      true);
+        writeMatrix(mfpte, "../results/depth_" + maxDepth + "/estimate_MFPT_using_RW/MFPTE.dat");
+        writeMatrix(mfpte_stddev, "../results/depth_" + maxDepth + "/estimate_MFPT_using_RW/MFPTE_stddev.dat");
+        writeMatrix(mfpte_len, "../results/depth_" + maxDepth + "/estimate_MFPT_using_RW/MFPTE_len.dat");
     }
 
     // Sample a pair and some neighbours. M is the number of
@@ -714,7 +685,7 @@ public class Sample {
             Sample sample = new Sample(maxDepth);
             sample.writeMatrices(sample.sampleComplete(),
                                  "depth_" + maxDepth,
-                                 false, null);
+                                 false);
             
         } else if (args.length == 2 && args[0].equals("uniformSampleMatrices")) {
             int maxDepth = new Integer(args[1]);
@@ -724,7 +695,7 @@ public class Sample {
             ArrayList<String> ofInterest = sample.sampleByGrow(10);
             sample.writeMatrices(ofInterest,
                                  "uniform_depth_" + maxDepth,
-                                 true, null);
+                                 true);
             
         } else if (args.length == 2 && args[0].equals("rwSampleMatrices")) {
             int maxDepth = new Integer(args[1]);
@@ -733,7 +704,7 @@ public class Sample {
             Sample sample = new Sample(maxDepth);
             sample.writeMatrices(sample.sampleRandomWalk(10, 20, 10),
                                  "rw_sample_depth_" + maxDepth,
-                                 true, null);
+                                 true);
             
         } else if (args.length == 2 && args[0].equals("mhSampleMatrices")) {
             int maxDepth = new Integer(args[1]);
@@ -743,7 +714,7 @@ public class Sample {
             Sample sample = new Sample(maxDepth);
             sample.writeMatrices(sample.sampleMetropolisHastings(10, 20, 10),
                                  "mh_sample_depth_" + maxDepth,
-                                 true, null);
+                                 true);
             
         } else if (args.length == 2 && args[0].equals("randomWalking")) {
             int maxDepth = new Integer(args[1]);
