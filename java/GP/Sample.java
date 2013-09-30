@@ -44,10 +44,14 @@ public class Sample {
 
     // write out a matrix of values
     public void writeMatrix(double [][]vals,
-                            String filename) {
+                            String dirname,
+                            String filename
+                            ) {
         try {
+            (new File(dirname)).mkdirs();
+
             // Open file
-            FileWriter fw = new FileWriter(filename);
+            FileWriter fw = new FileWriter(dirname + "/" + filename);
 
             for (int s = 0; s < vals.length; s++) {
                 for (int t = 0; t < vals[s].length; t++) {
@@ -58,13 +62,14 @@ public class Sample {
             fw.close();
         } catch (IOException e) {
             e.printStackTrace();
+            System.exit(1);
         }
     }
 
     // Given a list of trees, write out a matrix of distances between
     // all pairs, for many different types of distance.
     public void writeMatrices(ArrayList<String> trees,
-                              String codename,
+                              String dirname,
                               boolean writeNonNormalised
                               ) {
 
@@ -104,20 +109,17 @@ public class Sample {
 
         for (String distance: distanceNames) {
 
-            // write to ../results/<codename>/<distance>.dat
-            String dirname = "../results/" + codename + "/";
-            (new File(dirname)).mkdirs();
             String filename;
             if (distance.equals("TP") && writeNonNormalised) {
                 // Since we're sampling from the space, the
                 // transition probabilities won't sum to 1. So
                 // save to _nonnormalised.
-                filename = dirname + "TP_nonnormalised.dat";
+                filename = "TP_nonnormalised.dat";
             } else {
-                filename = dirname + distance + ".dat";
+                filename = distance + ".dat";
             }
             
-            writeMatrix(valss.get(distance), filename);
+            writeMatrix(valss.get(distance), dirname, filename);
         }
             
     }
@@ -438,13 +440,14 @@ public class Sample {
                 mfpte_len[uidx][vidx] = (double) nsaved;
             }
         }
-        
+
+        String dirname = "../results/depth_" + maxDepth + "/estimate_MFPT_using_RW_" + nsteps;
         writeMatrices(selected,
-                      "depth_" + maxDepth + "/estimate_MFPT_using_RW",
+                      dirname,
                       true);
-        writeMatrix(mfpte, "../results/depth_" + maxDepth + "/estimate_MFPT_using_RW/MFPTE.dat");
-        writeMatrix(mfpte_stddev, "../results/depth_" + maxDepth + "/estimate_MFPT_using_RW/MFPTE_stddev.dat");
-        writeMatrix(mfpte_len, "../results/depth_" + maxDepth + "/estimate_MFPT_using_RW/MFPTE_len.dat");
+        writeMatrix(mfpte, dirname, "/MFPTE.dat");
+        writeMatrix(mfpte_stddev, dirname, "/MFPTE_stddev.dat");
+        writeMatrix(mfpte_len, dirname, "/MFPTE_len.dat");
     }
 
     // Sample a pair and some neighbours. M is the number of
@@ -721,8 +724,8 @@ public class Sample {
             // sample some individuals randomly and estimate random
             // walk lengths between them by simulation.
             Sample sample = new Sample(maxDepth);
-            ArrayList<String> ofInterest = sample.sampleByGrow(40);
-            sample.randomWalking(10000, ofInterest, 10);
+            ArrayList<String> ofInterest = sample.sampleByGrow(100);
+            sample.randomWalking(1000000000, ofInterest, 100);
 
         } else if (args.length == 2 && args[0].equals("sampleForSuperNode")) {
             int maxDepth = new Integer(args[1]);
