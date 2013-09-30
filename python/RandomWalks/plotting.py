@@ -247,7 +247,8 @@ def make_correlation_tables(dirname, txt=""):
             do_line(syn, syn)
 
         f.write(r"""\end{tabular}
-\end{table*}""")
+\end{table*}
+""")
 
     f.close()
 
