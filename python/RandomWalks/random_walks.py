@@ -299,7 +299,7 @@ def get_commute_distance_using_Laplacian(S):
     assert np.allclose(S, S.T)
 
     n = S.shape[0]
-    # compute global graph laplacian: 
+    # get laplacian L
     d = np.sum(S,1)
     D = np.diag(d)
     L = (D - S)
@@ -318,13 +318,6 @@ def get_commute_distance_using_Laplacian(S):
 
 def Von_Luxburg_amplified_commute(A):
     R = get_commute_distance_using_Laplacian(A)
-    # FIXME should be able to use our existing MFPT and scale by the
-    # right constant to get R:
-    
-    # mfpt = get_mfpt(A)
-    # R = mfpt + mfpt.T
-    # # convert our commute time to a resistance distance as used by VL
-    # R /= vol 
 
     n = A.shape[0]
     
