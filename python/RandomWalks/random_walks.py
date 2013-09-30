@@ -466,76 +466,88 @@ def land_of_oz_matrix():
     snow."""
     return np.array([[.5, .25, .25], [.5, .0, .5], [.25, .25, .5]])
 
-def simulate_random_walk(m, nsteps, selected=None):
-    """m is the transition matrix, nsteps is the number of steps,
-    selected is a subset of the states (integers) in which we're
-    interested (if None, default to all). Return an array of samples
-    for MFPT for each pair (i, j) from selected."""
+def simulate_random_walk(f, nsteps, selected, nsaves):
+    """f is the transition function. nsteps is the number of steps.
+    selected is the set of states (can be a list of integers) in which
+    we're interested. nsaves is the max number of samples to save for
+    each pair. Return an array of samples for MFPT for each pair (i,
+    j) from selected."""
 
-    if selected is None:
-        selected = list(range(m.shape[0]))
     n = len(selected)
-    # a reasonable rule of thumb for how many to save
-    nsaves = nsteps / n 
-    # samples is all nans except zeros on the diagonal
+    # samples is all nans to start
     samples = np.nan + np.zeros((n, n, nsaves))
-    for i in range(n):
-        samples[i,i] = 0
-    # the (i,j)th entry is the last sighting of i relevant to j. -1
-    # means "never seen"
-    last_seen = -1 * np.ones((n, n), dtype='int64')
+    # in the rw_started matrix, the (i,j)th entry is the time-step at
+    # which a walk from i to j began. -1 means we are not currently in
+    # a walk from i to j. can't be in a walk from i to j and from j to
+    # i simultaneously.
+    rw_started = -1 * np.ones((n, n), dtype='int64')
     # for each transition there are nsaves spaces to save samples --
     # this says where to save
     saveidx = np.zeros((n, n), dtype='int')
 
-    def roulette_wheel(a):
-        """Given a sequence of probabilities, return an index into it
-        randomly chosen weighted by them."""
-        s = np.sum(a)
-        assert s > 0
-        r = random.random() * s
-        cumsum = 0.0
-        for i, v in enumerate(a):
-            cumsum += v
-            if r < cumsum:
-                return i
-        raise ValueError("Unexpected: failed to find a slot in roulette wheel")
+    def print_state(v, rw_started, samples, t):
+        print("%d: %d" % (t, v))
 
-    def print_state(m, v, last_seen, samples, t):
-        print("t = " + str(t) + " last seen")
-        print(last_seen)
-        print("v")
-        print(v)
-        print("")
-
-    v = selected[0]
+    # su and sv are states (may be integers). u and v are the indices
+    # into selected of su and sv
+    sv = selected[0]
     for t in range(nsteps):
-        print_state(m, v, last_seen, samples, t)
-        # when we see a v of interest
-        if v in selected:
+        print_state(sv, rw_started, samples, t)
+        
+        # when we see a state sv which is of interest
+        if sv in selected:
+            v = selected.index(sv)
             
-            # mark that we have seen v
-            for u in selected:
-                if last_seen[v,u] == -1:
-                    last_seen[v,u] = t
-            
-            for u in selected:
-                # if u seen more recently than v
-                if last_seen[u,v] > last_seen[v,u]:
-                    # save a sample (now - last relevant occurrence of
-                    # u) if there is space to save it
+            for u, su in enumerate(selected):
+
+                if rw_started[u,v] == rw_started[v,u] == -1:
+                    rw_started[v,u] = t
+
+                elif rw_started[u,v] > -1:
+                    # we are currently in a walk from u to v, and we
+                    # have just reached v, so save a sample (now -
+                    # start of walk), if there is space
                     if saveidx[u,v] < nsaves:
-                        samples[u,v,saveidx[u,v]] = (t  - last_seen[u,v])
+                        samples[u,v,saveidx[u,v]] = (t - rw_started[u,v])
                         # update the space left
                         saveidx[u,v] += 1
-                    last_seen[v,u] = t
-        v = roulette_wheel(m[v])
+                    # now we start a walk from v to u. because of the
+                    # order of these two assignments, this does the
+                    # right thing if v == u.
+                    rw_started[u,v] = -1
+                    rw_started[v,u] = t
+
+                elif rw_started[v,u] > -1:
+                    # we are in a walk from v to u, and have
+                    # re-encountered v. ignore.
+                    pass
+
+                else:
+                    raise InternalError
+                    
+        # transition to a new state
+        sv = f(sv)
     return samples
+
+def roulette_wheel(a):
+    """Randomly sample an index, weighted by the given sequence of
+    probabilities."""
+    s = np.sum(a)
+    assert s > 0
+    r = random.random() * s
+    cumsum = 0.0
+    for i, v in enumerate(a):
+        cumsum += v
+        if r < cumsum:
+            return i
+    raise ValueError("Unexpected: failed to find a slot in roulette wheel")
+
     
 def test_random_walk():
     oz = land_of_oz_matrix()
-    n = oz.shape[0]
-    samples = simulate_random_walk(oz, 2000)
+    samples = simulate_random_walk(
+        lambda i: roulette_wheel(tp[i]), # transition according to tp
+        200, [0, 1, 2], 10)
     print(samples)
     mfpte = scipy.stats.nanmean(samples, axis=2)
     mfpte_std = scipy.stats.nanstd(samples, axis=2)
