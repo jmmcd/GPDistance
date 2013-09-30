@@ -448,7 +448,30 @@ public class Sample {
         writeMatrix(mfpte, dirname, "/MFPTE.dat");
         writeMatrix(mfpte_stddev, dirname, "/MFPTE_stddev.dat");
         writeMatrix(mfpte_len, dirname, "/MFPTE_len.dat");
+
+        writeListOfTrees(selected, dirname, "/trees_sampled.dat");
     }
+
+    public void writeListOfTrees(ArrayList<String> trees,
+                                 String dirname,
+                                 String filename) {
+        try {
+            (new File(dirname)).mkdirs();
+
+            // Open file
+            FileWriter fw = new FileWriter(dirname + "/" + filename);
+
+            for (String tree: trees) {
+                fw.write(tree + "\n");
+            }
+            fw.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.exit(1);
+        }
+    }
+            
+            
 
     // Sample a pair and some neighbours. M is the number of
     // neighbours of each
@@ -725,7 +748,8 @@ public class Sample {
             // walk lengths between them by simulation.
             Sample sample = new Sample(maxDepth);
             ArrayList<String> ofInterest = sample.sampleByGrow(100);
-            sample.randomWalking(1000000000, ofInterest, 100);
+            // sample.randomWalking(1000000000, ofInterest, 100);
+            sample.randomWalking((int) (1298*0.1), ofInterest, 100);
 
         } else if (args.length == 2 && args[0].equals("sampleForSuperNode")) {
             int maxDepth = new Integer(args[1]);
