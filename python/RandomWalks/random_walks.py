@@ -296,6 +296,8 @@ def Von_Luxburg_amplified_commute_wrapper(dirname):
     np.savetxt(outfilename, ct_amp)
 
 def get_commute_distance_using_Laplacian(S):
+    """Original code copyright (C) Ulrike Von Luxburg, Python
+    implementation by me (James McDermott)."""
 
     n = S.shape[0]
     L = Laplacian_matrix(S)
@@ -313,6 +315,11 @@ def get_commute_distance_using_Laplacian(S):
     return Rexact
 
 def Von_Luxburg_amplified_commute(A):
+    """From Von Luxburg etal, "Getting lost in space: Large sample
+    analysis of the commute distance". Original code copyright (C)
+    Ulrike Von Luxburg, Python implementation by me (James
+    McDermott)."""
+    
     R = get_commute_distance_using_Laplacian(A)
 
     n = A.shape[0]
@@ -335,6 +342,9 @@ def Von_Luxburg_amplified_commute(A):
     return D
 
 def read_and_get_Von_Luxburg_approximations(dirname):
+    """From Von Luxburg etal, 2011, "Hitting and commute times in
+    large graphs are often misleading"."""
+    
     # assumes TP and MFPT have been calculated and written out already
     t = read_transition_matrix(dirname + "/TP.dat")
     mfpt = np.genfromtxt(dirname + "/MFPT.dat")
@@ -386,33 +396,6 @@ array([[ 2., -1.,  0.,  0., -1.,  0.],
     D=I*np.sum(A,axis=1)
     L=D-A
     return L
-
-def Yen_correction(m):
-    """From Yen et al,
-    http://link.springer.com/content/pdf/10.1007%2F978-3-540-71701-0_117.pdf,
-    referred to by Von Luxburg et al."""
-    L = np.linalg.pinv(Laplacian_matrix(m))
-    sigma = np.std(L) # a normalising factor
-    a = 7.0 # The value used by Yen et al, determined experimentally
-    K_Yen = 1.0 / (1 + a * np.exp(-L / sigma))
-    return K_Yen
-
-def Brand_correction(m):
-    """Placeholder. From Von Luxburg et al."""
-    # assumes mfpt has been calculated and written out already
-    # mfpt = np.genfromtxt(dirname + "/MFPT.dat")
-    # R = mfpt / vol_G
-    n = m.shape[0]
-    sum_all = np.sum(R)
-    sum_ik_kj = np.zeros_like(R)
-
-    # this is far too slow -- need to reformulate in matrix terms
-    for i in range(n):
-        for j in range(n):
-            sum_ik_kj = sum(R[i][k] + R[k][j] for k in range(n))
-    K = 1/2.0 * (-R + 1./n * (sum_ik + sum_kj) - 1.0/(n*n) * sum_all)
-    K_B = K / np.sqrt(Kii * Kjj) # (need to express KiiKjj as a matrix)
-    return K_B
     
 def read_and_get_dtp_mfpt_sp_steps(dirname):
 
