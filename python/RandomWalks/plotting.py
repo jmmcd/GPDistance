@@ -301,36 +301,48 @@ def compare_MFPT_estimate_RW_v_exact(dirname):
     
     filename = dirname + "/MFPT.dat"
     mfpt = np.genfromtxt(filename)
-    mfpt = mfpt.reshape(len(mfpt)**2)
         
     filename = dirname + "/compare_MFPT_estimate_RW_v_exact.tex"
     f = open(filename, "w")
 
+    # FIXME these are hardcoded to depth_2
     lengths = [129, 1298, 12980, 129800]
     for length in lengths:
+        
+        # mfpte: read, mask nan, mask len < 5 (100x100)
         filename = dirname + "/estimate_MFPT_using_RW_" + str(length) + "/MFPTE.dat"
         mfpte = np.genfromtxt(filename, usemask=True, missing_values="NaN")
-        mfpte = mfpte.reshape(len(mfpte)**2)
+        filename = dirname + "/estimate_MFPT_using_RW_" + str(length) + "/MFPTE_len.dat"
+        mfpte_len = np.genfromtxt(filename)
+        min_vals = 5 # an attempt at reliability
+        mfpte[mfpte_len < min_vals] = np.ma.masked
 
-        # need to restrict mfpt to the 100x100 entries which are
+        # mfpt: copy, select sampled only to make it 100x100
+        mfpt_tmp = mfpt.copy()
+        # need to restrict mfpt_tmp to the 100x100 entries which are
         # indicated by the trees_sampled.dat file
         filename = dirname + "/estimate_MFPT_using_RW_" + str(length) + "/trees_sampled.dat"
         trees_sampled = open(filename).read().strip().split("\n")
         filename = dirname + "/all_trees.dat"
         all_trees = open(filename).read().strip().split("\n")
         indices = get_indices_of_common_entries(all_trees, trees_sampled)
-        # FIXME not finished -- still need to construct the restricted
-        # MFPT using np.select
+        # the selected indices are into both the rows and columns
+        mfpt_tmp = mfpt_tmp[indices][:,indices]
+        
+        # reshape both
+        mfpte = mfpte.reshape(len(mfpte)**2)
+        mfpt_tmp = mfpt_tmp.reshape(len(mfpt_tmp)**2)
 
+        # correlate using mask
         f.write("Number of samples: " + str(length) + "\n")
-        corr, p = get_pearson_r(mfpt, mfpte)
+        corr, p = get_pearson_r(mfpt_tmp, mfpte)
         f.write("Pearson R correlation " + str(corr) + "; ")
         f.write("p-value " + str(p) + ". ")
-        corr, p = get_spearman_rho(mfpt, mfpte)
+        corr, p = get_spearman_rho(mfpt_tmp, mfpte)
         f.write("Spearman rho correlation " + str(corr) + "; ")
         f.write("p-value " + str(p) + ". ")
         if len(mfpte) < 1000:
-            corr, p = get_kendall_tau(mfpt, mfpte)
+            corr, p = get_kendall_tau(mfpt_tmp, mfpte)
             f.write("Kendall tau correlation " + str(corr) + "; ")
             f.write("p-value " + str(p) + ". ")
         else:
