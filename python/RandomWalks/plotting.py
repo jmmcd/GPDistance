@@ -11,6 +11,9 @@ import sys
 import os
 from math import *
 import random
+import scipy.stats
+import scipy.stats.mstats
+            
 
 # MAXTICKS is 1000 in IndexLocator
 class MyLocator(mpl.ticker.IndexLocator):
@@ -112,13 +115,15 @@ def get_kendall_tau(x, y):
      However it is of n^2 time complexity, hence unsuitable for even
      medium-sized inputs."""
 
-    if "scipy" not in locals():
-        import scipy.stats
     # make sure we raise any error (so we can catch it), don't just
     # splat it on the terminal
     old = np.seterr(all='raise')
     try:
-        corr, p = scipy.stats.kendalltau(x, y)
+        if (isinstance(x, np.ma.core.MaskedArray) or
+            isinstance(y, np.ma.core.MaskedArray)):
+            corr, p = scipy.stats.mstats.kendalltau(x, y)
+        else:
+            corr, p = scipy.stats.kendalltau(x, y)
     except (FloatingPointError, TypeError):
         # TypeError can arise in Kendall tau when both x and y are
         # constant
@@ -136,8 +141,6 @@ def get_spearman_rho(x, y):
      assumes normal distributions, which our distances certainly
      aren't, and Kendall's tau is O(n^2), so unbearably slow."""
 
-    if "scipy" not in locals():
-        import scipy.stats
     # Make sure we raise any error (so we can catch it), don't just
     # splat it on the terminal. However we will ignore underflow
     # because it seems to happen with every single one. Similar
@@ -145,7 +148,11 @@ def get_spearman_rho(x, y):
     # [https://code.google.com/p/wnd-charm/source/browse/pychrm/trunk/pychrm/FeatureSet.py?r=723]
     old = np.seterr(all='raise', under='ignore')
     try:
-        corr, p = scipy.stats.spearmanr(x, y)
+        if (isinstance(x, np.ma.core.MaskedArray) or
+            isinstance(y, np.ma.core.MaskedArray)):
+            corr, p = scipy.stats.mstats.spearmanr(x, y)
+        else:
+            corr, p = scipy.stats.spearmanr(x, y)
     except FloatingPointError:
         corr, p = 0.0, 1.0
     # restore old error settings
@@ -158,13 +165,15 @@ def get_pearson_r(x, y):
      the variables is constant, a FloatingPointError will happen and
      we can just say that there was no association."""
 
-    if "scipy" not in locals():
-        import scipy.stats
     # Make sure we raise any error (so we can catch it), don't just
     # splat it on the terminal. 
     old = np.seterr(all='raise')
     try:
-        corr, p = scipy.stats.pearsonr(x, y)
+        if (isinstance(x, np.ma.core.MaskedArray) or
+            isinstance(y, np.ma.core.MaskedArray)):
+            corr, p = scipy.stats.mstats.pearsonr(x, y)
+        else:
+            corr, p = scipy.stats.pearsonr(x, y)
     except FloatingPointError:
         corr, p = 0.0, 1.0
     # restore old error settings
@@ -277,6 +286,57 @@ def compare_sampled_v_calculated(dirname):
         f.write("Omitting Kendall tau because it is infeasible for large matrices. ")
     f.close()
 
+def compare_MFPT_estimate_RW_v_exact(dirname):
+
+    def get_indices_of_common_entries(a, b):
+        result = []
+        for i in b:
+            try:
+                j = a.index(i)
+                result.append(j)
+            except ValueError:
+                pass
+        assert len(result) == len(b)
+        return result
+    
+    filename = dirname + "/MFPT.dat"
+    mfpt = np.genfromtxt(filename)
+    mfpt = mfpt.reshape(len(mfpt)**2)
+        
+    filename = dirname + "/compare_MFPT_estimate_RW_v_exact.tex"
+    f = open(filename, "w")
+
+    lengths = [129, 1298, 12980, 129800]
+    for length in lengths:
+        filename = dirname + "/estimate_MFPT_using_RW_" + str(length) + "/MFPTE.dat"
+        mfpte = np.genfromtxt(filename, usemask=True, missing_values="NaN")
+        mfpte = mfpte.reshape(len(mfpte)**2)
+
+        # need to restrict mfpt to the 100x100 entries which are
+        # indicated by the trees_sampled.dat file
+        filename = dirname + "/estimate_MFPT_using_RW_" + str(length) + "/trees_sampled.dat"
+        trees_sampled = open(filename).read().strip().split("\n")
+        filename = dirname + "/all_trees.dat"
+        all_trees = open(filename).read().strip().split("\n")
+        indices = get_indices_of_common_entries(all_trees, trees_sampled)
+        # FIXME not finished -- still need to construct the restricted
+        # MFPT using np.select
+
+        f.write("Number of samples: " + str(length) + "\n")
+        corr, p = get_pearson_r(mfpt, mfpte)
+        f.write("Pearson R correlation " + str(corr) + "; ")
+        f.write("p-value " + str(p) + ". ")
+        corr, p = get_spearman_rho(mfpt, mfpte)
+        f.write("Spearman rho correlation " + str(corr) + "; ")
+        f.write("p-value " + str(p) + ". ")
+        if len(mfpte) < 1000:
+            corr, p = get_kendall_tau(mfpt, mfpte)
+            f.write("Kendall tau correlation " + str(corr) + "; ")
+            f.write("p-value " + str(p) + ". ")
+        else:
+            f.write("Omitting Kendall tau because it is infeasible for large matrices. ")
+    f.close()
+    
 def write_steady_state(dirname):
     """Get steady state, write it out and plot it. Also calculate the
     in-degree of each node, by summing columns. Plot that on the same
@@ -373,6 +433,8 @@ if __name__ == "__main__":
 
     if cmd == "compareTPCalculatedVSampled":
         compare_sampled_v_calculated(dirname)
+    elif cmd == "compareMFPTEstimateRWVExact":
+        compare_MFPT_estimate_RW_v_exact(dirname)
     elif cmd == "makeCorrelationTable":
         txt = sys.argv[3]
         make_correlation_tables(dirname, txt)

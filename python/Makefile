@@ -22,6 +22,15 @@ compareTPCalculatedVSampledDepth2:
 compareTPCalculatedVSampledGALength4:
 	cd RandomWalks && ./plotting.py compareTPCalculatedVSampled ../../results/ga_length_4
 
+compareMFPTEstimateRWVExactDepth1:
+	cd RandomWalks && ./plotting.py compareMFPTEstimateRWVExact ../../results/depth_1
+
+compareMFPTEstimateRWVExactDepth2:
+	cd RandomWalks && ./plotting.py compareMFPTEstimateRWVExact ../../results/depth_2
+
+compareMFPTEstimateRWVExactGALength4:
+	cd RandomWalks && ./plotting.py compareMFPTEstimateRWVExact ../../results/ga_length_4
+
 writeSteadyStateDepth1:
 	cd RandomWalks && ./plotting.py writeSteadyState ../../results/depth_1
 
