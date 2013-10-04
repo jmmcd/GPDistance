@@ -130,17 +130,7 @@ def check_row_sums(d):
 
 def set_self_transition_zero(x):
     """Set cost/length of self-transition to zero."""
-    # Was using this method:
-    #
-    # x *= (np.ones_like(x) - np.eye(len(x)))
-    #
-    # ... but it fails if infinities are involved. The following
-    # method works ok.
-    for i in range(len(x)):
-        x[i][i] = 0.0
-    # FIXME this is the right method -- avoids python loop
-    # x -= np.diag(x) * np.eye(len(x))
-        
+    np.fill_diagonal(x, 0.0)        
 
 def get_mfpt(x):
     """Calculate mean-first-passage time of a given transition
@@ -265,138 +255,9 @@ def get_steady_state(tp):
     ss = ss.T[0] # not sure why it ends up with an extra unused dimension
     return ss
 
-def get_Boley_undirected(tp):
-    """Boley et al define an undirected graph which "corresponds to" a
-    directed graph. Its adjacency matrix is G**s = (Pi * P + P' *
-    Pi)/2, where Pi is the steady-state set out along a diagonal and P
-    is the transition probability matrix. But we will get the
-    transition probability matrix:
-
-    P**s = (P + inv(Pi) * P.T * Pi) / 2
-
-    Note that this matrix is not necessarily symmetric.
-    """
-    from numpy import dot as d
-    P = tp
-    Pi = np.diag(get_steady_state(tp))
-    return (P + d(d(np.linalg.inv(Pi), P.T), Pi)) / 2.0
-
 def is_symmetric(x):
     return np.allclose(x, x.T)
 
-def Von_Luxburg_amplified_commute_wrapper(dirname):
-    # The following requires a symmetric adjacency matrix so we read
-    # TP.dat and symmetrize it. can't use the CT.dat which has been
-    # written-out, because that corresponds to TP.dat. have to
-    # re-calculate CT (done inside the function).
-    tp = np.genfromtxt(dirname + "/TP.dat")
-    stp = (tp + tp.T) / 2.0
-    ct_amp = Von_Luxburg_amplified_commute(stp)
-    outfilename = dirname + "/CT_amp.dat"
-    np.savetxt(outfilename, ct_amp)
-
-def get_commute_distance_using_Laplacian(S):
-    """Original code copyright (C) Ulrike Von Luxburg, Python
-    implementation by me (James McDermott)."""
-
-    n = S.shape[0]
-    L = Laplacian_matrix(S)
-    dinv = 1./ np.sum(S, 0)
-    
-    Linv = linalg.inv(L + np.ones(L.shape)/n) - np.ones(L.shape)/n
-
-    Linv_diag = np.diag(Linv).reshape((n, 1))
-    Rexact = Linv_diag * np.ones((1, n)) + np.ones((n, 1)) * Linv_diag.T - 2 * Linv
-    
-    # convert from a resistance distance to a commute time distance
-    vol = np.sum(S)
-    Rexact *= vol
-    
-    return Rexact
-
-def Von_Luxburg_amplified_commute(A):
-    """From Von Luxburg etal, "Getting lost in space: Large sample
-    analysis of the commute distance". Original code copyright (C)
-    Ulrike Von Luxburg, Python implementation by me (James
-    McDermott)."""
-    
-    R = get_commute_distance_using_Laplacian(A)
-
-    n = A.shape[0]
-    
-    # compute commute time limit expression:
-    d = np.sum(A, 1)    
-    Rlimit = np.tile((1. / d), (n, 1)).T + np.tile((1. / d), (n, 1))
-
-    # compute correction term u_{ij}: 
-    tmp = np.tile(np.diag(A), (n, 1)).T / np.tile(d, (n, 1))
-    tmp2 = np.tile(d, (n, 1)).T * np.tile(d, (n, 1))
-    uAu = tmp + tmp.T - 2 * A / tmp2
-
-    # compute amplified commute: 
-    tmp3 = R - Rlimit - uAu
-
-    # enforce 0 diagonal: 
-    D = tmp3 - np.diag(np.diag(tmp3))
-
-    return D
-
-def read_and_get_Von_Luxburg_approximations(dirname):
-    """From Von Luxburg etal, 2011, "Hitting and commute times in
-    large graphs are often misleading"."""
-    
-    # assumes TP and MFPT have been calculated and written out already
-    t = read_transition_matrix(dirname + "/TP.dat")
-    mfpt = np.genfromtxt(dirname + "/MFPT.dat")
-    ones = np.ones_like(t)
-    n = t.shape[0]
-    
-    # d_v is the in-degree, which is the column sum. this
-    # multiplication does the right thing
-    d_v = np.sum(t, axis=0) * ones
-    # transpose to get d_u
-    d_u = d_v.T
-    # vol(G) is sum of degrees, which we interpret in the directed
-    # case as sum of out-degrees (which is anyway equal to sum of
-    # in-degrees); because weights are transition probabilities, each
-    # out-degree = 1; so vol(G) = n.
-    vol_G = float(n)
-    
-    mfpt_vla = vol_G * 1.0 / d_v
-    set_self_transition_zero(mfpt_vla)
-    outfilename = dirname + "/MFPT_VLA.dat"
-    np.savetxt(outfilename, mfpt_vla)
-
-    ct_vla = vol_G * (1.0 / d_u + 1.0 / d_v)
-    set_self_transition_zero(ct_vla)
-    outfilename = dirname + "/CT_VLA.dat"
-    np.savetxt(outfilename, ct_vla)
-    
-
-def Laplacian_matrix(A):
-    """Copied from
-    http://networkx.lanl.gov/_modules/networkx/linalg/laplacianmatrix.html. Eg
-
->>> A = np.array([[0, 1, 0, 0, 1, 0],
-                  [1, 0, 1, 0, 1, 0],
-                  [0, 1, 0, 1, 0, 0],
-                  [0, 0, 1, 0, 1, 1], 
-                  [1, 1, 0, 1, 0, 0],
-                  [0, 0, 0, 1, 0, 0]])
->>> Laplacian_matrix(A)
-array([[ 2., -1.,  0.,  0., -1.,  0.],
-       [-1.,  3., -1.,  0., -1.,  0.],
-       [ 0., -1.,  2., -1.,  0.,  0.],
-       [ 0.,  0., -1.,  3., -1., -1.],
-       [-1., -1.,  0., -1.,  3.,  0.],
-       [ 0.,  0.,  0., -1.,  0.,  1.]])
-"""
-    assert is_symmetric(A)
-    I=np.identity(A.shape[0])
-    D=I*np.sum(A,axis=1)
-    L=D-A
-    return L
-    
 def read_and_get_dtp_mfpt_sp_steps(dirname):
 
     if os.path.exists(dirname + "/TP_nonnormalised.dat"):
