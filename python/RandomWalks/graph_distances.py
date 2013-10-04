@@ -10,6 +10,7 @@ import scipy.linalg as linalg
 from numpy import dot as d
 import random
 import sys
+from random_walks import set_self_transition_zero
 
 def get_Boley_undirected(tp):
     """Boley et al define an undirected graph which "corresponds to" a
@@ -84,13 +85,7 @@ def Von_Luxburg_amplified_commute(A):
 
     return D
 
-def read_and_get_Von_Luxburg_approximations(dirname):
-    """From Von Luxburg etal, 2011, "Hitting and commute times in
-    large graphs are often misleading"."""
-    
-    # assumes TP and MFPT have been calculated and written out already
-    t = read_transition_matrix(dirname + "/TP.dat")
-    mfpt = np.genfromtxt(dirname + "/MFPT.dat")
+def Von_Luxburg_approximations(t):
     ones = np.ones_like(t)
     n = t.shape[0]
     
@@ -107,11 +102,21 @@ def read_and_get_Von_Luxburg_approximations(dirname):
     
     mfpt_vla = vol_G * 1.0 / d_v
     set_self_transition_zero(mfpt_vla)
-    outfilename = dirname + "/MFPT_VLA.dat"
-    np.savetxt(outfilename, mfpt_vla)
-
     ct_vla = vol_G * (1.0 / d_u + 1.0 / d_v)
     set_self_transition_zero(ct_vla)
+
+    return mfpt_vla, ct_vla
+
+def Von_Luxburg_approximations_wrapper(dirname):
+    """From Von Luxburg etal, 2011, "Hitting and commute times in
+    large graphs are often misleading"."""
+    
+    # assumes TP has been calculated and written out already
+    t = read_transition_matrix(dirname + "/TP.dat")
+    mfpt_vla, ct_vla = Von_Luxburg_approximations_wrapper(t)
+
+    outfilename = dirname + "/MFPT_VLA.dat"
+    np.savetxt(outfilename, mfpt_vla)
     outfilename = dirname + "/CT_VLA.dat"
     np.savetxt(outfilename, ct_vla)
     

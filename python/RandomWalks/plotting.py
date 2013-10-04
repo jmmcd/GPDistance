@@ -23,7 +23,7 @@ graph_distance_names = ["D_TP", "SD_TP",
                         "MFPT", "CT", "MFPT_VLA", "CT_VLA",
                         "SP", "STEPS",
                         ]
-graph_distance_tex_names = ["$D_{\mathrm{TP}}$", r"S$D_{\mathrm{TP}}$",
+graph_distance_tex_names = ["$D_{\mathrm{TP}}$", r"SD$_{\mathrm{TP}}$",
                             "MFPT", "CT", "MFPT-VLA", "CT-VLA",
                             "SP", "STEPS",
                             ]
