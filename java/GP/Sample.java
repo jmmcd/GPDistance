@@ -419,7 +419,7 @@ public class Sample {
 
                 int nsaved = 0;
                 double sum = 0.0;
-                for (Long i: walkLengths[vidx][uidx]) {
+                for (Long i: walkLengths[uidx][vidx]) {
                     if (i > -1) {
                         nsaved += 1;
                         sum += i;
@@ -427,7 +427,7 @@ public class Sample {
                 }
                 double mean = sum / nsaved;
                 double var = 0.0;
-                for (Long i: walkLengths[vidx][uidx]) {
+                for (Long i: walkLengths[uidx][vidx]) {
                     if (i > -1) {
                         var += (i - mean) * (i - mean);
                     }
@@ -748,8 +748,8 @@ public class Sample {
             // walk lengths between them by simulation.
             Sample sample = new Sample(maxDepth);
             ArrayList<String> ofInterest = sample.sampleByGrow(100);
-            // sample.randomWalking(1000000000, ofInterest, 100);
-            sample.randomWalking((int) (1298*0.1), ofInterest, 100);
+            //sample.randomWalking(1000000000, ofInterest, 100);
+            sample.randomWalking((int) (1298*1000), ofInterest, 100);
 
         } else if (args.length == 2 && args[0].equals("sampleForSuperNode")) {
             int maxDepth = new Integer(args[1]);
