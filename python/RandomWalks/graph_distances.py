@@ -10,7 +10,7 @@ import scipy.linalg as linalg
 from numpy import dot as d
 import random
 import sys
-from random_walks import set_self_transition_zero
+from random_walks import set_self_transition_zero, read_transition_matrix
 
 def get_Boley_undirected(tp):
     """Boley et al define an undirected graph which "corresponds to" a
@@ -60,9 +60,12 @@ def get_commute_distance_using_Laplacian(S):
 
 def Von_Luxburg_amplified_commute(A):
     """From Von Luxburg etal, "Getting lost in space: Large sample
-    analysis of the commute distance". Original code copyright (C)
-    Ulrike Von Luxburg, Python implementation by me (James
-    McDermott)."""
+    analysis of the commute distance".
+
+    Assumes A is symmetric.
+
+    Original code copyright (C) Ulrike Von Luxburg, Python
+    implementation by me (James McDermott)."""
     
     R = get_commute_distance_using_Laplacian(A)
 
@@ -85,6 +88,7 @@ def Von_Luxburg_amplified_commute(A):
 
     return D
 
+# Does not assume t is symmetric
 def Von_Luxburg_approximations(t):
     ones = np.ones_like(t)
     n = t.shape[0]
@@ -113,12 +117,24 @@ def Von_Luxburg_approximations_wrapper(dirname):
     
     # assumes TP has been calculated and written out already
     t = read_transition_matrix(dirname + "/TP.dat")
-    mfpt_vla, ct_vla = Von_Luxburg_approximations_wrapper(t)
+    mfpt_vla, ct_vla = Von_Luxburg_approximations(t)
 
     outfilename = dirname + "/MFPT_VLA.dat"
     np.savetxt(outfilename, mfpt_vla)
     outfilename = dirname + "/CT_VLA.dat"
     np.savetxt(outfilename, ct_vla)
+
+def RSP_and_FE_wrapper(dirname):
+    # assumes TP has been calculated and written out already
+    t = read_transition_matrix(dirname + "/TP.dat")
+    beta = 1.0
+    rsp, fe = RSP_and_FE_distances(t, beta)
+
+    outfilename = dirname + "/RSP.dat"
+    np.savetxt(outfilename, rsp)
+    outfilename = dirname + "/FE.dat"
+    np.savetxt(outfilename, fe)
+    
     
 
 def Laplacian_matrix(A):
@@ -405,5 +421,15 @@ ans =
 
 
 if __name__ == "__main__":
-    test_Kivimaki()
-    test_Von_Luxburg()
+    if len(sys.argv):
+        cmd = sys.argv[1]
+        dirname = sys.argv[2]
+        if cmd == "RSP_FE_CT_amp":
+            Von_Luxburg_amplified_commute_wrapper(dirname)
+            RSP_and_FE_wrapper(dirname)
+        else:
+            print("Unknown command")
+    else:
+        test_Kivimaki()
+        test_Von_Luxburg()
+

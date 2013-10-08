@@ -21,10 +21,12 @@ class MyLocator(mpl.ticker.IndexLocator):
 
 graph_distance_names = ["D_TP", "SD_TP",
                         "MFPT", "CT", "MFPT_VLA", "CT_VLA",
+                        "RSP", "FE", "CT_amp",
                         "SP", "STEPS",
                         ]
 graph_distance_tex_names = ["$D_{\mathrm{TP}}$", r"SD$_{\mathrm{TP}}$",
                             "MFPT", "CT", "MFPT-VLA", "CT-VLA",
+                            "RSP", "FE", "CT-amp",
                             "SP", "STEPS",
                             ]
 
@@ -197,6 +199,16 @@ def make_correlation_tables(dirname, txt=""):
             "Hamming"
         ]
 
+    # FIXME some way of using only these in depth 6
+    # if "depth_6" in dirname:
+    #     graph_distance_names = [
+    #         "D_TP", "MFPTE"
+    #     ]
+    # graph_distance_tex_names = [
+    #         "D$_\mathrm{TP}$", "MFPTE"
+    #     ]
+        
+
     d = {}
     for name in syntactic_distance_names + graph_distance_names:
         # print("reading " + name)
@@ -224,7 +236,7 @@ def make_correlation_tables(dirname, txt=""):
         f.write(line + "\n")
         
     for corr_type in ["spearmanrho", "pearsonr", "kendalltau"]:
-        if corr_type == "kendalltau" and len(d["STEPS"]) > 1000:
+        if corr_type == "kendalltau" and len(d["D_TP"]) > 1000:
             print("Omitting Kendall tau because it is infeasible for large matrices")
             continue
         filename = dirname + "/correlation_table_" + corr_type + ".tex"
@@ -262,8 +274,6 @@ def make_correlation_tables(dirname, txt=""):
     f.close()
 
 def compare_sampled_v_calculated(dirname):
-    if "scipy" not in locals():
-        import scipy.stats
     
     stp = np.genfromtxt(dirname + "/TP_sampled.dat")
     stp = stp.reshape(len(stp)**2)
@@ -305,8 +315,11 @@ def compare_MFPT_estimate_RW_v_exact(dirname):
     filename = dirname + "/compare_MFPT_estimate_RW_v_exact.tex"
     f = open(filename, "w")
 
-    # FIXME these are hardcoded to depth_2
-    lengths = [129, 1298, 12980, 129800]
+    if "depth_2" in dirname:
+        lengths = [1298, 12980, 129800]
+    elif "depth_1" in dirname:
+        # NB with 18, too few values to run correlation
+        lengths = [180, 1800, 18000]
     for length in lengths:
         
         # mfpte: read, mask nan, mask len < 5 (100x100)
@@ -315,6 +328,7 @@ def compare_MFPT_estimate_RW_v_exact(dirname):
         filename = dirname + "/estimate_MFPT_using_RW_" + str(length) + "/MFPTE_len.dat"
         mfpte_len = np.genfromtxt(filename)
         min_vals = 5 # an attempt at reliability
+        print("%d of %d values of length < 5" % (np.sum(mfpte_len < min_vals), len(mfpte_len)))
         mfpte[mfpte_len < min_vals] = np.ma.masked
 
         # mfpt: copy, select sampled only to make it 100x100
@@ -347,6 +361,7 @@ def compare_MFPT_estimate_RW_v_exact(dirname):
             f.write("p-value " + str(p) + ". ")
         else:
             f.write("Omitting Kendall tau because it is infeasible for large matrices. ")
+        f.write("\n")
     f.close()
     
 def write_steady_state(dirname):
@@ -356,8 +371,6 @@ def write_steady_state(dirname):
     in-degree. Calculate the stddev of the steady-state as well, and
     (why not) the stddev of the TP matrix as well."""
     from random_walks import get_steady_state
-    if "scipy" not in locals():
-        import scipy.stats
     tp = np.genfromtxt(dirname + "/TP.dat")
     ss = get_steady_state(tp)
     s = ("Stddev " + str(np.std(ss)) + ". ")
@@ -399,13 +412,17 @@ def make_mds_images(dirname):
 
     if "depth" in dirname:
         names = ["CT", "SD_TP", "TED", "TAD0", "OVD", "FVD"]
+        # read in the trees
+        filename = dirname + "/all_trees.dat"
+        labels = open(filename).read().strip().split("\n")
     else:
         names = ["CT", "SD_TP", "Hamming"]
+        labels = None
     for name in names:
         m = np.genfromtxt(dirname + "/" + name + ".dat")
-        make_mds_image(m, dirname + "/" + name + "_MDS")
+        make_mds_image(m, dirname + "/" + name + "_MDS", labels)
     
-def make_mds_image(m, filename):
+def make_mds_image(m, filename, labels=None):
     """Given a matrix of distances, project into 2D space using
     multi-dimensional scaling and produce an image."""
 
@@ -431,6 +448,14 @@ def make_mds_image(m, filename):
     # marker='^',
     # c=[random.random() for i in range(len(p[:,0]))],
     # cmap=cm.autumn)
+
+    if labels != None:
+        # hard-coded to depth-2
+        indices = [0, 2, 50, 52]
+        for i in indices:
+            plt.text(p[i,0], p[i,1], labels[i], style='italic',
+                    bbox={'facecolor':'red', 'alpha':0.5, 'pad':10})
+    
     plt.savefig(filename + ".png")
     plt.savefig(filename + ".pdf")
 

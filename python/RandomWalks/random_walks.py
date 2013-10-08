@@ -158,7 +158,7 @@ def invert_probabilities(adj):
     due to zero-probabilities, which result in infinite edge-traversal
     costs, which is what we want. Restore the "raise" behaviour
     afterward."""
-    np.seterr(all='warn')
+    np.seterr(divide='ignore')
     retval = -np.log(adj)
     np.seterr(all='raise')
     return retval
@@ -366,6 +366,8 @@ def simulate_random_walk(f, nsteps, selected, nsaves):
             for u, su in enumerate(selected):
 
                 if rw_started[u,v] == rw_started[v,u] == -1:
+                    # never saw u or v before, but this is the
+                    # beginning of a walk from v to u
                     rw_started[v,u] = t
 
                 elif rw_started[u,v] > -1:
@@ -439,4 +441,4 @@ if __name__ == "__main__":
     # read_and_get_Von_Luxburg_approximations(dirname)
     # estimate_MFPT_with_supernode(dirname)
     # analyse_random_walk(dirname)
-    test_random_walk()
+    # test_random_walk()
