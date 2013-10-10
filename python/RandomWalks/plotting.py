@@ -347,6 +347,7 @@ def compare_MFPT_estimate_RW_v_exact(dirname):
             f.write("p-value " + str(p) + ". ")
         else:
             f.write("Omitting Kendall tau because it is infeasible for large matrices. ")
+        f.write("\n")
     f.close()
     
 def write_steady_state(dirname):
