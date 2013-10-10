@@ -92,17 +92,49 @@ def normalise_by_row(d):
     sums to 1. By renormalising we get the true probability after (if
     necessary) multiple rounds of rejection and finally one
     acceptance."""
-    for i in range(len(d)):
-        sumval = np.sum(d[i])
-        d[i] *= 1.0 / sumval
-    check_row_sums(d)
-    return d
+    # np.sum(d, 1).reshape((len(d), 1)) is the column of row-sums
+    return d / np.sum(d, 1).reshape((len(d), 1))
 
 def make_random_matrix(n):
     """Make a random transition matrix on n points."""
     tm = np.random.random((n, n))
     return normalise_by_row(tm)
 
+def make_random_binary_matrix(n, p):
+    """n is the number of nodes, p the probability of each possible
+    edge existing."""
+    # FIXME this doesn't prevent isolated components. need a smarter
+    # algorithm.
+    d = np.array(np.random.random((n, n)) < p, dtype=float)
+    def hack_connectivity(d):
+        for i, row in enumerate(d):
+            # if there are no ones off-diagonal, then it's an isolated
+            # node (can't transition away) -- hack it by adding a one in a
+            # random place, off-diagonal. 
+            if np.sum(row) - row[i] < 0.000001:
+                # second argument to randint is *inclusive*
+                loc = random.randint(0, n-2)
+                if loc >= i:
+                    loc += 1
+                d[i, loc] = 1.0
+    hack_connectivity(d)
+    d = d.T
+    hack_connectivity(d)
+    d = normalise_by_row(d)
+    return d
+
+def mean_mfpt(n, p):
+    """n is the number of nodes, p the probability of each possible
+    edge existing. idea is to see if there's a correlation between
+    mean mfpt and p."""
+    m = make_random_binary_matrix(n, p)
+    mfpt = get_mfpt(m)
+    mean_mfpt = np.mean(mfpt)
+    # get mean mfpt off-diagonal -- this formula works because the
+    # diagonal is zero
+    mean_mfpt_distinct = np.sum(mfpt) / (len(mfpt)**2 - len(mfpt))
+    return mean_mfpt, mean_mfpt_distinct
+    
 def make_absorbing(tm, dest):
     """Given a transition matrix, disallow transitions away from the
     given destination -- ie make it an absorbing matrix."""
