@@ -158,9 +158,9 @@ def invert_probabilities(adj):
     due to zero-probabilities, which result in infinite edge-traversal
     costs, which is what we want. Restore the "raise" behaviour
     afterward."""
-    np.seterr(divide='ignore')
+    old = np.seterr(divide='ignore')
     retval = -np.log(adj)
-    np.seterr(all='raise')
+    np.seterr(**old)
     return retval
 
 def deinvert_probabilities(adj):
@@ -409,7 +409,6 @@ def roulette_wheel(a):
             return i
     raise ValueError("Unexpected: failed to find a slot in roulette wheel")
 
-    
 def test_random_walk():
     oz = land_of_oz_matrix()
     samples = simulate_random_walk(

@@ -13,7 +13,6 @@ from math import *
 import random
 import scipy.stats
 import scipy.stats.mstats
-            
 
 # MAXTICKS is 1000 in IndexLocator
 class MyLocator(mpl.ticker.IndexLocator):
@@ -109,6 +108,42 @@ def make_grid(w, names, filename):
     np.seterr(**old)
 
 
+def metric_distortion(a, b):
+    """Calculate the metric distortion between two metrics on the same
+    space. a and b are samples of the distances between pairs of
+    points (can be between all pairs).
+
+    See Gupta's paper on embeddings: given a mapping f: X->Y (both
+    metric spaces), the contraction of f is sup(d_X(x, y)/d_Y(f(x),
+    f(y))); the expansion of f is sup(d_Y(f(x), f(y))/d_X(x, y)). The
+    distortion is contraction * expansion. The best (lowest) possible
+    value is 1. To avoid divide-by-zero, this assumes d(x, y) != 0 --
+    ie x != y, and d is strictly positive for distinct elements, which
+    is true of any metric but not true of some of our distance
+    functions. Below, we overwrite any divide-by-zeros just in case.
+
+    In our case, X = Y = the search space, eg trees of depth 2 or
+    less. d_X is one metric, eg TED; d_Y is another, eg D_TP; f is the
+    identity mapping. This leads to these equations:
+
+    contraction = sup(TED(x, y)/TP(x, y)); expansion = sup(TP(x,
+    y)/TED(x, y)).
+
+    Also, it means that the order of arguments (a, b) is
+    unimportant."""
+
+    old = np.seterr(divide="ignore")
+    ab = a/b
+    ab[~np.isfinite(ab)] = -1
+    contraction = np.max(ab)
+
+    ba = b/a
+    ba[~np.isfinite(ba)] = -1
+    expansion = np.max(ba)
+    np.seterr(**old)
+    return expansion * contraction
+
+    
 def get_kendall_tau(x, y):
     """Return Kendall's tau, a non-parametric test of association. If
      one of the variables is constant, a FloatingPointError will
@@ -202,6 +237,9 @@ def make_correlation_tables(dirname, txt=""):
                 corr, p = get_kendall_tau(d[graph_distance], d[dist])
             elif corr_type == "pearsonr":
                 corr, p = get_pearson_r(d[graph_distance], d[dist])
+            elif corr_type == "metric_distortion":
+                # there is no p-value associated with metric distortion
+                corr, p = metric_distortion(d[graph_distance], d[dist]), 0
             else:
                 print("Unknown correlation type " + corr_type)
             if corr > 0.0 and p < 0.05:
@@ -212,7 +250,7 @@ def make_correlation_tables(dirname, txt=""):
         line += r"\\"
         f.write(line + "\n")
         
-    for corr_type in ["spearmanrho", "pearsonr", "kendalltau"]:
+    for corr_type in ["spearmanrho", "pearsonr", "kendalltau", "metric_distortion"]:
         if corr_type == "kendalltau" and len(d["D_TP"]) > 1000:
             print("Omitting Kendall tau because it is infeasible for large matrices")
             continue
@@ -228,6 +266,9 @@ def make_correlation_tables(dirname, txt=""):
             f.write("using Pearson's R: ")
         elif corr_type == "kendalltau":
             f.write("using Kendall's tau: ")
+        elif corr_type == "metric_distortion":
+            f.write("using metric distortion: ")
+            
         f.write(txt)
         f.write(r"""\label{tab:correlationresults_""" + os.path.basename(dirname) + "}}\n")
         f.write(r"""\begin{tabular}{""" + "|".join("l" for i in range(1+len(grph_names))) + r"""}
