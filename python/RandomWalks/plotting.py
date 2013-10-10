@@ -20,7 +20,7 @@ class MyLocator(mpl.ticker.IndexLocator):
 
 def graph_distance_names(dirname):
     if "depth_6" in dirname:
-        return ["D_TP", "MFPTE"], ["D$_\mathrm{TP}$", "MFPTE"]
+        return ["D_TP", "MFPT"], ["D$_\mathrm{TP}$", "MFPT"]
     else:
         return [
             "D_TP", "SD_TP",
