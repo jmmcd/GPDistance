@@ -5,7 +5,7 @@ all:
 	cd GP && make
 
 testTP:
-	java -Xmx512m -cp ${cp} GP.Mutation "(+ x (+ y y))" "y"
+	java -Xmx512m -cp ${cp} GP.Mutation "(+ y (* x x))" "y"
 
 testRandomWalk:
 	java -Xmx512m -cp ${cp} GP.Sample testRandomWalk 4
@@ -34,6 +34,9 @@ uniformSampleDepth6:
 
 rwSampleDepth6:
 	java -cp ${cp} GP.Sample rwSampleMatrices 6
+
+rwSampleDepth2:
+	java -cp ${cp} GP.Sample rwSampleMatrices 2
 
 mhSampleDepth6:
 	java -cp ${cp} GP.Sample mhSampleMatrices 6

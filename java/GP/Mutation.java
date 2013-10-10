@@ -87,20 +87,7 @@ public class Mutation {
 
     // Assumes that t and s are proper trees, where IDs reflect
     // depth-first traversal and depths are calculated correctly.
-
-    // This is wrong:
-    // From (+ y (* x x))
-    // To y
-    // TP 0.0
-
-    // From x
-    // To y
-    // TP 0.0
-
-    // From (+ x y)
-    // To y
-    // TP 0.0    
-    public float transitionProbability(Tree t, Tree s) {
+    public double transitionProbability(Tree t, Tree s) {
         int F = language.F;
         int T = language.T;
 
@@ -165,7 +152,7 @@ public class Mutation {
         }
 
         // Then just need to sum over 1/nnodes * prob(requiredSubtree).
-        float retval = 0.0f;
+        double retval = 0.0;
         int nnodes = tNodes.size();
         // System.out.println("nnodes = " + nnodes);
         for (int i = 0; i < requiredSubtrees.size(); i++) {
@@ -176,13 +163,13 @@ public class Mutation {
             // System.out.println("requiredSubtree:"
             //                    + requiredSubtrees.get(i).toStringAsTree());
 
-            float sgp = subtreeGrowProb(requiredSubtrees.get(i),
-                                        maxDepth - cutPointDepths.get(i));
-            if (sgp < 0.0f) {
-                // System.out.println("trans prob retval = " + 0.0f);
-                return 0.0f;
+            double sgp = subtreeGrowProb(requiredSubtrees.get(i),
+                                         maxDepth - cutPointDepths.get(i));
+            if (sgp < 0.0) {
+                // System.out.println("trans prob retval = " + 0.0);
+                return 0.0;
             }
-            retval += (1.0f / nnodes) * sgp;
+            retval += (1.0 / nnodes) * sgp;
         }
         // System.out.println("trans prob retval = " + retval);
         return retval;
@@ -232,16 +219,16 @@ public class Mutation {
 
     // Probability of generating a particular subtree using
     // the grow method.
-    public float subtreeGrowProb(Node n, int maxDepth) {
+    public double subtreeGrowProb(Node n, int maxDepth) {
 
         int T = language.T;
         int F = language.F;
         // PT is the probability of choosing a terminal
-        float PT = language.PT;
+        double PT = language.PT;
 
         if (maxDepth <= 0 && n.children.size() > 0) {
             // Something's gone wrong: this tree can't be created
-            return -1.0f;
+            return -1.0;
         }
 
         if (n.children.size() == 0) {
@@ -250,8 +237,8 @@ public class Mutation {
             if (maxDepth == 0) {
                 // we MUST choose a terminal
                 // System.out.println("subtreeGrowProb for subtree "
-                //                    + n.toStringAsTree() + " " + 1.0f / T);
-                return 1.0f / T;
+                //                    + n.toStringAsTree() + " " + 1.0 / T);
+                return 1.0 / T;
             } else {
 
                 // we don't HAVE to choose a terminal, but we do.
@@ -268,12 +255,12 @@ public class Mutation {
         // probability of choosing a function. (1 / F) is the
         // probability of choosing correct function, given that we
         // choose a function.
-        float retval = (1.0f - PT) / F;
+        double retval = (1.0 - PT) / F;
         for (Node child: n.children) {
             // recurse for each child.
-            float sgp = subtreeGrowProb(child, maxDepth - 1);
-            if (sgp < 0.0f) {
-                return -1.0f;
+            double sgp = subtreeGrowProb(child, maxDepth - 1);
+            if (sgp < 0.0) {
+                return -1.0;
             }
             retval *= sgp;
         }
@@ -284,8 +271,8 @@ public class Mutation {
 
     // For full trees, every tree is equally likely. So ignore the
     // passed-in node.
-    public float subtreeFullProb(Node n, int maxDepth) {
-        return 1.0f / language.countFullTrees();
+    public double subtreeFullProb(Node n, int maxDepth) {
+        return 1.0 / language.countFullTrees();
     }
 
 

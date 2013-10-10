@@ -149,7 +149,7 @@ public class Sample {
             for (String srcS: trees) {
                 System.out.println("Working on " + srcS + " (" + trees.indexOf(srcS) + " of " + trees.size() + ")");
                 // make a zero array to hold values
-                float[] counts = new float[trees.size()];
+                double[] counts = new double[trees.size()];
                 for (int i = 0; i < counts.length; i++) {
                     counts[i] = 0;
                 }
@@ -165,7 +165,7 @@ public class Sample {
                     counts[idx]++;
                 }
                 // write normalised counts
-                float sum = 0.0f;
+                double sum = 0.0;
                 for (int i = 0; i < trees.size(); i++) {
                     sum += counts[i];
                 }
@@ -213,12 +213,12 @@ public class Sample {
 
             FileWriter tpFile = new FileWriter(basename + "/TP.dat");
         
-            float meanRowsum = 0.0f; // sum of inward TPs to supernode over all rows but last
+            double meanRowsum = 0.0; // sum of inward TPs to supernode over all rows but last
             for (int i = 0; i < L; i++) {
-                float rowsum = 0.0f;
+                double rowsum = 0.0;
                 for (int j = 0; j < L; j++) {
-                    float tp = mutator.transitionProbability(new Tree(sample.get(i)),
-                                                             new Tree(sample.get(j)));
+                    double tp = mutator.transitionProbability(new Tree(sample.get(i)),
+                                                              new Tree(sample.get(j)));
                     rowsum += tp;
                     tpFile.write(tp + " ");
 
@@ -229,8 +229,8 @@ public class Sample {
                 }
 
                 // write the inward TP for supernode
-                tpFile.write(1.0f - rowsum + "");
-                meanRowsum += (1.0f - rowsum);
+                tpFile.write(1.0 - rowsum + "");
+                meanRowsum += (1.0 - rowsum);
 
                 // System.out.println("rowsum " + rowsum);
                 tpFile.write("\n");
@@ -245,7 +245,7 @@ public class Sample {
             // TP(S, x) = (1 - mean(rowsum)) / L -- share out remaining probability
 
             for (int i = 0; i < L; i++) {
-                tpFile.write((1.0f - meanRowsum) / L + " ");
+                tpFile.write((1.0 - meanRowsum) / L + " ");
             }
             tpFile.write(meanRowsum + "\n");
 
@@ -730,8 +730,8 @@ public class Sample {
             // write out the matrices of distances for a sample from
             // the space of given depth, sampled by random walk.
             Sample sample = new Sample(maxDepth);
-            sample.writeMatrices(sample.sampleRandomWalk(10, 20, 10),
-                                 "rw_sample_depth_" + maxDepth,
+            sample.writeMatrices(sample.sampleRandomWalk(10, 100, 10),
+                                 "../results/depth_" + maxDepth + "/rwSample",
                                  true);
             
         } else if (args.length == 2 && args[0].equals("mhSampleMatrices")) {
