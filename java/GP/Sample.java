@@ -325,7 +325,7 @@ public class Sample {
                               ) {
 
         int n = selected.size();
-        
+
         // for each pair of individuals (u, v) in selected, rwStarted
         // holds the time-step at which the rw from u to v began. if
         // we see i several times in a row before seeing j, then only
@@ -336,12 +336,14 @@ public class Sample {
         // for each pair of individuals in selected, walkLengths
         // holds samples of walkLengths between them.
         long[][][] walkLengths = new long[n][n][nsaves];
-        
-        // // set up the various matrices
-        // for (int i = 0; i < n; i++) {
-        //     stringToIndex.put(selected.get(i), i);
-        // }
 
+        // set up a hashmap for fast access
+        HashMap<String, Integer> stringToIndex = new HashMap<String, Integer>();
+        for (int i = 0; i < n; i++) {
+            stringToIndex.put(selected.get(i), i);
+        }
+
+        // set up various matrices
         for (int i = 0; i < n; i++) {
             for (int j = 0; j < n; j++) {
                 rwStarted[i][j] = -1;
@@ -359,17 +361,16 @@ public class Sample {
         for (long t = 0; t < nsteps; t += 1) {
             // System.out.println("");
             
-            int v = selected.indexOf(sv);
-            if (v != -1) {
-
-                // when we see an individual sv of interest
+            Integer v = stringToIndex.get(sv);
+            if (v != null) {
+                // we have found an individual sv of interest
+                
                 for (int u = 0; u < n; u++) {
-
-                    String su = selected.get(u);
 
                     if (rwStarted[u][v] == rwStarted[v][u] &&
                         rwStarted[u][v] == -1) {
-
+                        // never saw u or v before, but this is the
+                        // beginning of a walk from v to u
                         rwStarted[v][u] = t;
 
                     } else if (rwStarted[u][v] > -1) {
@@ -391,7 +392,8 @@ public class Sample {
                         rwStarted[v][u] = t;
                         
                     } else if (rwStarted[v][u] > -1) {
-                        // do nothing
+                        // we are in a walk from v to u, and have
+                        // re-encountered v. ignore.
                         
                     } else {
                         System.out.println("Unexpected, in a walk from u and v and v to u at the same time?");
@@ -419,7 +421,7 @@ public class Sample {
 
                 int nsaved = 0;
                 double sum = 0.0;
-                for (Long i: walkLengths[vidx][uidx]) {
+                for (Long i: walkLengths[uidx][vidx]) {
                     if (i > -1) {
                         nsaved += 1;
                         sum += i;
@@ -427,7 +429,7 @@ public class Sample {
                 }
                 double mean = sum / nsaved;
                 double var = 0.0;
-                for (Long i: walkLengths[vidx][uidx]) {
+                for (Long i: walkLengths[uidx][vidx]) {
                     if (i > -1) {
                         var += (i - mean) * (i - mean);
                     }
@@ -748,8 +750,8 @@ public class Sample {
             // walk lengths between them by simulation.
             Sample sample = new Sample(maxDepth);
             ArrayList<String> ofInterest = sample.sampleByGrow(100);
-            // sample.randomWalking(1000000000, ofInterest, 100);
-            sample.randomWalking((int) (1298*0.1), ofInterest, 100);
+            //sample.randomWalking(1000000000, ofInterest, 100);
+            sample.randomWalking((int) (1298*1000), ofInterest, 100);
 
         } else if (args.length == 2 && args[0].equals("sampleForSuperNode")) {
             int maxDepth = new Integer(args[1]);

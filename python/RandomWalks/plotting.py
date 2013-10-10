@@ -13,20 +13,39 @@ from math import *
 import random
 import scipy.stats
 import scipy.stats.mstats
-            
 
 # MAXTICKS is 1000 in IndexLocator
 class MyLocator(mpl.ticker.IndexLocator):
     MAXTICKS=1500
 
-graph_distance_names = ["D_TP", "SD_TP",
-                        "MFPT", "CT", "MFPT_VLA", "CT_VLA",
-                        "SP", "STEPS",
-                        ]
-graph_distance_tex_names = ["$D_{\mathrm{TP}}$", r"SD$_{\mathrm{TP}}$",
-                            "MFPT", "CT", "MFPT-VLA", "CT-VLA",
-                            "SP", "STEPS",
-                            ]
+def graph_distance_names(dirname):
+    if "depth_6" in dirname:
+        return ["D_TP", "MFPTE"], ["D$_\mathrm{TP}$", "MFPTE"]
+    else:
+        return [
+            "D_TP", "SD_TP",
+            "MFPT", "CT", "MFPT_VLA", "CT_VLA",
+            "RSP", "FE", "CT_amp",
+            "SP", "STEPS",
+            ], [
+            "$D_{\mathrm{TP}}$", r"SD$_{\mathrm{TP}}$",
+            "MFPT", "CT", "MFPT-VLA", "CT-VLA",
+            "RSP", "FE", "CT-amp",
+            "SP", "STEPS",
+            ]
+
+def syntactic_distance_names(dirname):
+    if "ga_length" in dirname:
+        return ["Hamming"]
+    else:
+        return [
+            "NCD", "FVD",
+            "NodeCount", "MinDepth", "MeanDepth", "MaxDepth",
+            "Symmetry", "MeanFanout", "DiscreteMetric",
+            "TED",
+            "TAD0", "TAD1", "TAD2", "TAD3", "TAD4", "TAD5",
+            "OVD",
+            ]
 
 def make_grid_plots(dirname):
     if "depth" in dirname:
@@ -36,34 +55,19 @@ def make_grid_plots(dirname):
         # Assume GA
         length = int(dirname.strip("/").split("_")[2])
         names = [bin(i)[2:] for i in range(2**length)]
-    
-    # gp distances
-    syntactic_distance_names = [
-        "NCD", "FVD",
-        "NodeCount", "MinDepth", "MeanDepth", "MaxDepth",
-        "Symmetry", "MeanFanout", "DiscreteMetric",
-        "TED",
-        "TAD0", "TAD1", "TAD2", "TAD3", "TAD4", "TAD5",
-        "OVD"
-    ]
-    # ga distances
-    if "ga_length" in dirname:
-        syntactic_distance_names = [
-            "Hamming"
-        ]
-    
-    for name in graph_distance_names + syntactic_distance_names:
-        # if name not in ("OVD", "TAD0"): continue
+
+    syn_names = syntactic_distance_names(dirname)
+    grph_names, grph_tex_names = graph_distance_names(dirname)
+        
+    for name in grph_names + syn_names:
         w = np.genfromtxt(dirname + "/" + name + ".dat")
         assert(len(w) == len(names))
         make_grid(w, False, dirname + "/" + name)
     print names # better to print them in a list somewhere than in the graph
         
 def make_grid(w, names, filename):
-    # TODO for now we dont rescale the data, although there are some
-    # matrices which would benefit from a log transform or
-    # similar. matshow() internally scales the data so that the
-    # smallest numbers go to black and largest to white.
+    # we dont rescale the data. matshow() internally scales the data
+    # so that the smallest numbers go to black and largest to white.
 
     # A uniform array will cause a "RuntimeWarning: invalid value
     # encountered in divide" when calculating the colorbar. So ignore
@@ -104,6 +108,42 @@ def make_grid(w, names, filename):
     np.seterr(**old)
 
 
+def metric_distortion(a, b):
+    """Calculate the metric distortion between two metrics on the same
+    space. a and b are samples of the distances between pairs of
+    points (can be between all pairs).
+
+    See Gupta's paper on embeddings: given a mapping f: X->Y (both
+    metric spaces), the contraction of f is sup(d_X(x, y)/d_Y(f(x),
+    f(y))); the expansion of f is sup(d_Y(f(x), f(y))/d_X(x, y)). The
+    distortion is contraction * expansion. The best (lowest) possible
+    value is 1. To avoid divide-by-zero, this assumes d(x, y) != 0 --
+    ie x != y, and d is strictly positive for distinct elements, which
+    is true of any metric but not true of some of our distance
+    functions. Below, we overwrite any divide-by-zeros just in case.
+
+    In our case, X = Y = the search space, eg trees of depth 2 or
+    less. d_X is one metric, eg TED; d_Y is another, eg D_TP; f is the
+    identity mapping. This leads to these equations:
+
+    contraction = sup(TED(x, y)/TP(x, y)); expansion = sup(TP(x,
+    y)/TED(x, y)).
+
+    Also, it means that the order of arguments (a, b) is
+    unimportant."""
+
+    old = np.seterr(divide="ignore")
+    ab = a/b
+    ab[~np.isfinite(ab)] = -1
+    contraction = np.max(ab)
+
+    ba = b/a
+    ba[~np.isfinite(ba)] = -1
+    expansion = np.max(ba)
+    np.seterr(**old)
+    return expansion * contraction
+
+    
 def get_kendall_tau(x, y):
     """Return Kendall's tau, a non-parametric test of association. If
      one of the variables is constant, a FloatingPointError will
@@ -182,30 +222,14 @@ def get_pearson_r(x, y):
 
 def make_correlation_tables(dirname, txt=""):
 
-    # gp distances
-    syntactic_distance_names = [
-        "NCD", "FVD",
-        "NodeCount", "MinDepth", "MeanDepth", "MaxDepth",
-        "Symmetry", "MeanFanout", "DiscreteMetric",
-        "TED",
-        "TAD0", "TAD1", "TAD2", "TAD3", "TAD4", "TAD5",
-        "OVD",
-    ]
-    # ga distances
-    if "ga_length" in dirname:
-        syntactic_distance_names = [
-            "Hamming"
-        ]
-
-    d = {}
-    for name in syntactic_distance_names + graph_distance_names:
-        # print("reading " + name)
-        m = np.genfromtxt(dirname + "/" + name + ".dat")
-        d[name] = m.reshape(len(m)**2)
+    syn_names = syntactic_distance_names(dirname)
+    grph_names, grph_tex_names = graph_distance_names(dirname)
+        
+    d = load_data_and_reshape(dirname, syn_names + grph_names)
 
     def do_line(dist, dist_name):
         line = dist_name.replace("_TP", r"$_{\mathrm{TP}}$")
-        for graph_distance in graph_distance_names:
+        for graph_distance in grph_names:
             print("getting association between " + graph_distance + " " + dist)
             if corr_type == "spearmanrho":
                 corr, p = get_spearman_rho(d[graph_distance], d[dist])
@@ -213,6 +237,9 @@ def make_correlation_tables(dirname, txt=""):
                 corr, p = get_kendall_tau(d[graph_distance], d[dist])
             elif corr_type == "pearsonr":
                 corr, p = get_pearson_r(d[graph_distance], d[dist])
+            elif corr_type == "metric_distortion":
+                # there is no p-value associated with metric distortion
+                corr, p = metric_distortion(d[graph_distance], d[dist]), 0
             else:
                 print("Unknown correlation type " + corr_type)
             if corr > 0.0 and p < 0.05:
@@ -223,8 +250,8 @@ def make_correlation_tables(dirname, txt=""):
         line += r"\\"
         f.write(line + "\n")
         
-    for corr_type in ["spearmanrho", "pearsonr", "kendalltau"]:
-        if corr_type == "kendalltau" and len(d["STEPS"]) > 1000:
+    for corr_type in ["spearmanrho", "pearsonr", "kendalltau", "metric_distortion"]:
+        if corr_type == "kendalltau" and len(d["D_TP"]) > 1000:
             print("Omitting Kendall tau because it is infeasible for large matrices")
             continue
         filename = dirname + "/correlation_table_" + corr_type + ".tex"
@@ -239,31 +266,70 @@ def make_correlation_tables(dirname, txt=""):
             f.write("using Pearson's R: ")
         elif corr_type == "kendalltau":
             f.write("using Kendall's tau: ")
+        elif corr_type == "metric_distortion":
+            f.write("using metric distortion: ")
+            
         f.write(txt)
         f.write(r"""\label{tab:correlationresults_""" + os.path.basename(dirname) + "}}\n")
-        f.write(r"""\begin{tabular}{""" + "|".join("l" for i in range(1+len(graph_distance_names))) + r"""}
-     & """ + " & ".join(graph_distance_tex_names)  + r"""\\
+        f.write(r"""\begin{tabular}{""" + "|".join("l" for i in range(1+len(grph_names))) + r"""}
+     & """ + " & ".join(grph_tex_names)  + r"""\\
 \hline
 \hline
 """)
 
-        for name, tex_name in zip(graph_distance_names, graph_distance_tex_names):
+        for name, tex_name in zip(grph_names, grph_tex_names):
             do_line(name, tex_name)
         f.write(r"""\hline
 \hline
 """)
-        for syn in syntactic_distance_names:
+        for syn in syn_names:
             do_line(syn, syn)
 
         f.write(r"""\end{tabular}
 \end{table*}
 """)
+        f.close()
 
-    f.close()
+        
+def load_data_and_reshape(dirname, names):
+    d = {}
+    for name in names:
+        # print("reading " + name)
+        m = np.genfromtxt(dirname + "/" + name + ".dat")
+        d[name] = m.reshape(len(m)**2)
+    return d
+
+def make_scatter_plots(dirname):
+    syn_names = syntactic_distance_names(dirname)
+    grph_names, grph_tex_names = graph_distance_names(dirname)
+        
+    d = load_data_and_reshape(dirname, syn_names + grph_names)
+
+    # while we have the data loaded in d, make scatter plots
+
+    # graph v graph first
+    for name1, tex_name1 in zip(grph_names, grph_tex_names):
+        for name2, tex_name2 in zip(grph_names, grph_tex_names):
+            if name1 < name2:
+                # avoid plotting anything against itself, or plotting any pair twice
+                make_scatter_plot(dirname, d, name1, tex_name1, name2, tex_name2)
+                
+    # graph v syn
+    for name1, tex_name1 in zip(syn_names, syn_names):
+        for name2, tex_name2 in zip(grph_names, grph_tex_names):
+            make_scatter_plot(dirname, d, name1, tex_name1, name2, tex_name2)
+
+def make_scatter_plot(dirname, d, name1, tex_name1, name2, tex_name2):
+    filename = dirname + "/scatter_" + name1 + "_" + name2
+    fig = plt.figure(figsize=(5,5))
+    ax = fig.add_subplot(1, 1, 1)
+    ax.scatter(d[name1], d[name2])
+    ax.set_xlabel(tex_name1)
+    ax.set_ylabel(tex_name2)
+    fig.savefig(filename + ".pdf")
+    fig.savefig(filename + ".png")
 
 def compare_sampled_v_calculated(dirname):
-    if "scipy" not in locals():
-        import scipy.stats
     
     stp = np.genfromtxt(dirname + "/TP_sampled.dat")
     stp = stp.reshape(len(stp)**2)
@@ -305,8 +371,11 @@ def compare_MFPT_estimate_RW_v_exact(dirname):
     filename = dirname + "/compare_MFPT_estimate_RW_v_exact.tex"
     f = open(filename, "w")
 
-    # FIXME these are hardcoded to depth_2
-    lengths = [129, 1298, 12980, 129800]
+    if "depth_2" in dirname:
+        lengths = [1298, 12980, 129800]
+    elif "depth_1" in dirname:
+        # NB with 18, too few values to run correlation
+        lengths = [180, 1800, 18000]
     for length in lengths:
         
         # mfpte: read, mask nan, mask len < 5 (100x100)
@@ -315,6 +384,7 @@ def compare_MFPT_estimate_RW_v_exact(dirname):
         filename = dirname + "/estimate_MFPT_using_RW_" + str(length) + "/MFPTE_len.dat"
         mfpte_len = np.genfromtxt(filename)
         min_vals = 5 # an attempt at reliability
+        print("%d of %d values of length < 5" % (np.sum(mfpte_len < min_vals), len(mfpte_len)))
         mfpte[mfpte_len < min_vals] = np.ma.masked
 
         # mfpt: copy, select sampled only to make it 100x100
@@ -357,8 +427,6 @@ def write_steady_state(dirname):
     in-degree. Calculate the stddev of the steady-state as well, and
     (why not) the stddev of the TP matrix as well."""
     from random_walks import get_steady_state
-    if "scipy" not in locals():
-        import scipy.stats
     tp = np.genfromtxt(dirname + "/TP.dat")
     ss = get_steady_state(tp)
     s = ("Stddev " + str(np.std(ss)) + ". ")
@@ -400,13 +468,17 @@ def make_mds_images(dirname):
 
     if "depth" in dirname:
         names = ["CT", "SD_TP", "TED", "TAD0", "OVD", "FVD"]
+        # read in the trees
+        filename = dirname + "/all_trees.dat"
+        labels = open(filename).read().strip().split("\n")
     else:
         names = ["CT", "SD_TP", "Hamming"]
+        labels = None
     for name in names:
         m = np.genfromtxt(dirname + "/" + name + ".dat")
-        make_mds_image(m, dirname + "/" + name + "_MDS")
+        make_mds_image(m, dirname + "/" + name + "_MDS", labels)
     
-def make_mds_image(m, filename):
+def make_mds_image(m, filename, labels=None):
     """Given a matrix of distances, project into 2D space using
     multi-dimensional scaling and produce an image."""
 
@@ -432,6 +504,14 @@ def make_mds_image(m, filename):
     # marker='^',
     # c=[random.random() for i in range(len(p[:,0]))],
     # cmap=cm.autumn)
+
+    if labels != None:
+        # hard-coded to depth-2
+        indices = [0, 2, 50, 52]
+        for i in indices:
+            plt.text(p[i,0], p[i,1], labels[i], style='italic',
+                    bbox={'facecolor':'red', 'alpha':0.5, 'pad':10})
+    
     plt.savefig(filename + ".png")
     plt.savefig(filename + ".pdf")
 
@@ -457,3 +537,5 @@ if __name__ == "__main__":
         write_steady_state(dirname)
     elif cmd == "makeMDSImages":
         make_mds_images(dirname)
+    elif cmd == "makeScatterPlots":
+        make_scatter_plots(dirname)
