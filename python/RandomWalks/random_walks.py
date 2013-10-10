@@ -438,7 +438,6 @@ if __name__ == "__main__":
     #     generate_ga_tm(dirname, 0.1)
     # read_and_get_dtp_mfpt_sp_steps(dirname)
     # write_symmetric_remoteness(dirname)
-    # read_and_get_Von_Luxburg_approximations(dirname)
     # estimate_MFPT_with_supernode(dirname)
     # analyse_random_walk(dirname)
     # test_random_walk()

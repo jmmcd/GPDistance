@@ -19,16 +19,34 @@ import scipy.stats.mstats
 class MyLocator(mpl.ticker.IndexLocator):
     MAXTICKS=1500
 
-graph_distance_names = ["D_TP", "SD_TP",
-                        "MFPT", "CT", "MFPT_VLA", "CT_VLA",
-                        "RSP", "FE", "CT_amp",
-                        "SP", "STEPS",
-                        ]
-graph_distance_tex_names = ["$D_{\mathrm{TP}}$", r"SD$_{\mathrm{TP}}$",
-                            "MFPT", "CT", "MFPT-VLA", "CT-VLA",
-                            "RSP", "FE", "CT-amp",
-                            "SP", "STEPS",
-                            ]
+def graph_distance_names(dirname):
+    if "depth_6" in dirname:
+        return ["D_TP", "MFPTE"], ["D$_\mathrm{TP}$", "MFPTE"]
+    else:
+        return [
+            "D_TP", "SD_TP",
+            "MFPT", "CT", "MFPT_VLA", "CT_VLA",
+            "RSP", "FE", "CT_amp",
+            "SP", "STEPS",
+            ], [
+            "$D_{\mathrm{TP}}$", r"SD$_{\mathrm{TP}}$",
+            "MFPT", "CT", "MFPT-VLA", "CT-VLA",
+            "RSP", "FE", "CT-amp",
+            "SP", "STEPS",
+            ]
+
+def syntactic_distance_names(dirname):
+    if "ga_length" in dirname:
+        return ["Hamming"]
+    else:
+        return [
+            "NCD", "FVD",
+            "NodeCount", "MinDepth", "MeanDepth", "MaxDepth",
+            "Symmetry", "MeanFanout", "DiscreteMetric",
+            "TED",
+            "TAD0", "TAD1", "TAD2", "TAD3", "TAD4", "TAD5",
+            "OVD",
+            ]
 
 def make_grid_plots(dirname):
     if "depth" in dirname:
@@ -38,34 +56,19 @@ def make_grid_plots(dirname):
         # Assume GA
         length = int(dirname.strip("/").split("_")[2])
         names = [bin(i)[2:] for i in range(2**length)]
-    
-    # gp distances
-    syntactic_distance_names = [
-        "NCD", "FVD",
-        "NodeCount", "MinDepth", "MeanDepth", "MaxDepth",
-        "Symmetry", "MeanFanout", "DiscreteMetric",
-        "TED",
-        "TAD0", "TAD1", "TAD2", "TAD3", "TAD4", "TAD5",
-        "OVD"
-    ]
-    # ga distances
-    if "ga_length" in dirname:
-        syntactic_distance_names = [
-            "Hamming"
-        ]
-    
-    for name in graph_distance_names + syntactic_distance_names:
-        # if name not in ("OVD", "TAD0"): continue
+
+    syn_names = syntactic_distance_names(dirname)
+    grph_names, grph_tex_names = graph_distance_names(dirname)
+        
+    for name in grph_names + syn_names:
         w = np.genfromtxt(dirname + "/" + name + ".dat")
         assert(len(w) == len(names))
         make_grid(w, False, dirname + "/" + name)
     print names # better to print them in a list somewhere than in the graph
         
 def make_grid(w, names, filename):
-    # TODO for now we dont rescale the data, although there are some
-    # matrices which would benefit from a log transform or
-    # similar. matshow() internally scales the data so that the
-    # smallest numbers go to black and largest to white.
+    # we dont rescale the data. matshow() internally scales the data
+    # so that the smallest numbers go to black and largest to white.
 
     # A uniform array will cause a "RuntimeWarning: invalid value
     # encountered in divide" when calculating the colorbar. So ignore
@@ -184,40 +187,14 @@ def get_pearson_r(x, y):
 
 def make_correlation_tables(dirname, txt=""):
 
-    # gp distances
-    syntactic_distance_names = [
-        "NCD", "FVD",
-        "NodeCount", "MinDepth", "MeanDepth", "MaxDepth",
-        "Symmetry", "MeanFanout", "DiscreteMetric",
-        "TED",
-        "TAD0", "TAD1", "TAD2", "TAD3", "TAD4", "TAD5",
-        "OVD",
-    ]
-    # ga distances
-    if "ga_length" in dirname:
-        syntactic_distance_names = [
-            "Hamming"
-        ]
-
-    # FIXME some way of using only these in depth 6
-    # if "depth_6" in dirname:
-    #     graph_distance_names = [
-    #         "D_TP", "MFPTE"
-    #     ]
-    # graph_distance_tex_names = [
-    #         "D$_\mathrm{TP}$", "MFPTE"
-    #     ]
+    syn_names = syntactic_distance_names(dirname)
+    grph_names, grph_tex_names = graph_distance_names(dirname)
         
-
-    d = {}
-    for name in syntactic_distance_names + graph_distance_names:
-        # print("reading " + name)
-        m = np.genfromtxt(dirname + "/" + name + ".dat")
-        d[name] = m.reshape(len(m)**2)
+    d = load_data_and_reshape(dirname, syn_names + grph_names)
 
     def do_line(dist, dist_name):
         line = dist_name.replace("_TP", r"$_{\mathrm{TP}}$")
-        for graph_distance in graph_distance_names:
+        for graph_distance in grph_names:
             print("getting association between " + graph_distance + " " + dist)
             if corr_type == "spearmanrho":
                 corr, p = get_spearman_rho(d[graph_distance], d[dist])
@@ -253,25 +230,63 @@ def make_correlation_tables(dirname, txt=""):
             f.write("using Kendall's tau: ")
         f.write(txt)
         f.write(r"""\label{tab:correlationresults_""" + os.path.basename(dirname) + "}}\n")
-        f.write(r"""\begin{tabular}{""" + "|".join("l" for i in range(1+len(graph_distance_names))) + r"""}
-     & """ + " & ".join(graph_distance_tex_names)  + r"""\\
+        f.write(r"""\begin{tabular}{""" + "|".join("l" for i in range(1+len(grph_names))) + r"""}
+     & """ + " & ".join(grph_tex_names)  + r"""\\
 \hline
 \hline
 """)
 
-        for name, tex_name in zip(graph_distance_names, graph_distance_tex_names):
+        for name, tex_name in zip(grph_names, grph_tex_names):
             do_line(name, tex_name)
         f.write(r"""\hline
 \hline
 """)
-        for syn in syntactic_distance_names:
+        for syn in syn_names:
             do_line(syn, syn)
 
         f.write(r"""\end{tabular}
 \end{table*}
 """)
+        f.close()
 
-    f.close()
+        
+def load_data_and_reshape(dirname, names):
+    d = {}
+    for name in names:
+        # print("reading " + name)
+        m = np.genfromtxt(dirname + "/" + name + ".dat")
+        d[name] = m.reshape(len(m)**2)
+    return d
+
+def make_scatter_plots(dirname):
+    syn_names = syntactic_distance_names(dirname)
+    grph_names, grph_tex_names = graph_distance_names(dirname)
+        
+    d = load_data_and_reshape(dirname, syn_names + grph_names)
+
+    # while we have the data loaded in d, make scatter plots
+
+    # graph v graph first
+    for name1, tex_name1 in zip(grph_names, grph_tex_names):
+        for name2, tex_name2 in zip(grph_names, grph_tex_names):
+            if name1 < name2:
+                # avoid plotting anything against itself, or plotting any pair twice
+                make_scatter_plot(dirname, d, name1, tex_name1, name2, tex_name2)
+                
+    # graph v syn
+    for name1, tex_name1 in zip(syn_names, syn_names):
+        for name2, tex_name2 in zip(grph_names, grph_tex_names):
+            make_scatter_plot(dirname, d, name1, tex_name1, name2, tex_name2)
+
+def make_scatter_plot(dirname, d, name1, tex_name1, name2, tex_name2):
+    filename = dirname + "/scatter_" + name1 + "_" + name2
+    fig = plt.figure(figsize=(5,5))
+    ax = fig.add_subplot(1, 1, 1)
+    ax.scatter(d[name1], d[name2])
+    ax.set_xlabel(tex_name1)
+    ax.set_ylabel(tex_name2)
+    fig.savefig(filename + ".pdf")
+    fig.savefig(filename + ".png")
 
 def compare_sampled_v_calculated(dirname):
     
@@ -481,3 +496,5 @@ if __name__ == "__main__":
         write_steady_state(dirname)
     elif cmd == "makeMDSImages":
         make_mds_images(dirname)
+    elif cmd == "makeScatterPlots":
+        make_scatter_plots(dirname)

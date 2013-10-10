@@ -427,6 +427,8 @@ if __name__ == "__main__":
         if cmd == "RSP_FE_CT_amp":
             Von_Luxburg_amplified_commute_wrapper(dirname)
             RSP_and_FE_wrapper(dirname)
+        elif cmd == "VLA":
+            Von_Luxburg_approximations_wrapper(dirname)
         else:
             print("Unknown command")
     else:
