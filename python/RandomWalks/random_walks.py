@@ -108,7 +108,8 @@ def make_random_binary_matrix(n, p):
     quick-n-dirty solution is to keep generating until we get a
     connected graph. If we fail after (say) 100 attempts, it could be
     because the choice of n and p tend to give unconnected graphs, so
-    just fail."""
+    just fail.
+    """
 
     i = 0
     while i < 100:
@@ -142,10 +143,9 @@ def test_mean_mfpt():
 def make_absorbing(tm, dest):
     """Given a transition matrix, disallow transitions away from the
     given destination -- ie make it an absorbing matrix."""
-    for j in range(len(tm)):
-        tm[dest, j] = 0.0
-    tm[dest, dest] = 1.0
-    return tm
+    e = np.zeros(len(tm))
+    e[dest] = 1
+    tm[dest, :] = e
 
 def read_transition_matrix(filename):
     """Read a transition matrix from a file and return. The matrix
@@ -154,15 +154,26 @@ def read_transition_matrix(filename):
     return d
 
 def check_row_sums(d):
-    # check that each row sums to 1, since each row is the
-    # out-probabilities from a single individual. Allow a small margin
-    # of error.
-    epsilon = 0.000001
-    for i, v in enumerate(d):
-        if not (1.0 - epsilon < sum(v) < 1.0 + epsilon):
-            print("Row doesn't sum to 1: " + str(i) + " " + str(sum(v)))
-            assert False
-    
+    """ Check that each row sums to 1, since each row is the
+    out-probabilities from a single individual. Allow the small margin
+    of error used by allclose()."""
+    return np.allclose(np.ones(len(d)), np.sum(d, 1))
+
+def is_positive_definite(x):
+    try:
+        L = np.linalg.cholesky(x)
+        return True
+    except np.linalg.LinAlgError:
+        return False
+        
+def kernel_to_distance(k):
+    if not is_symmetric(k):
+        raise ValueError("k is not symmetric")
+    if not is_positive_definite(k):
+        raise ValueError("k is not positive definite")
+    kxx = np.diag(k).reshape((len(k), 1)) * np.ones_like(k)
+    kyy = np.diag(k) * np.ones_like(k)
+    return np.sqrt(kxx + kyy - k - k.T)
 
 def set_self_transition_zero(x):
     """Set cost/length of self-transition to zero."""
