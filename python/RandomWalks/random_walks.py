@@ -154,12 +154,14 @@ def read_transition_matrix(filename):
     return d
 
 def check_row_sums(d):
-    """ Check that each row sums to 1, since each row is the
+    """Check that each row sums to 1, since each row is the
     out-probabilities from a single individual. Allow the small margin
     of error used by allclose()."""
     return np.allclose(np.ones(len(d)), np.sum(d, 1))
 
 def is_positive_definite(x):
+    """This is supposed to be fairly efficient. From
+    http://stackoverflow.com/questions/16266720/find-out-if-matrix-is-positive-definite-with-numpy"""
     try:
         L = np.linalg.cholesky(x)
         return True
@@ -167,6 +169,8 @@ def is_positive_definite(x):
         return False
         
 def kernel_to_distance(k):
+    """Given a kernel, ie a symmetric positive definite matrix of
+    similarities between elements, produce a distance."""
     if not is_symmetric(k):
         raise ValueError("k is not symmetric")
     if not is_positive_definite(k):
