@@ -39,11 +39,12 @@ def syntactic_distance_names(dirname):
         return ["Hamming"]
     else:
         return [
-            "NCD", "FVD",
-            "NodeCount", "MinDepth", "MeanDepth", "MaxDepth",
-            "Symmetry", "MeanFanout", "DiscreteMetric",
+            # "NodeCount", "MinDepth", "MeanDepth", "MaxDepth",
+            # "Symmetry", "MeanFanout", "DiscreteMetric",
             "TED",
             "TAD0", "TAD1", "TAD2", "TAD3", "TAD4", "TAD5",
+            "FVD",
+            "NCD", 
             "OVD",
             ]
 
@@ -143,6 +144,9 @@ def metric_distortion(a, b):
     np.seterr(**old)
     return expansion * contraction
 
+def metric_distortion_agreement(a, b):
+    # because we want a measure of agreement
+    return 1.0 / metric_distortion(a, b)
     
 def get_kendall_tau(x, y):
     """Return Kendall's tau, a non-parametric test of association. If
@@ -238,8 +242,9 @@ def make_correlation_tables(dirname, txt=""):
             elif corr_type == "pearsonr":
                 corr, p = get_pearson_r(d[graph_distance], d[dist])
             elif corr_type == "metric_distortion":
-                # there is no p-value associated with metric distortion
-                corr, p = metric_distortion(d[graph_distance], d[dist]), 0
+                # there is no p-value associated with metric
+                # distortion so use 1.0
+                corr, p = metric_distortion_agreement(d[graph_distance], d[dist]), 1.0
             else:
                 print("Unknown correlation type " + corr_type)
             if corr > 0.0 and p < 0.05:
@@ -251,7 +256,6 @@ def make_correlation_tables(dirname, txt=""):
         f.write(line + "\n")
         
     for corr_type in ["spearmanrho", "pearsonr", "kendalltau", "metric_distortion"]:
-    # for corr_type in ["metric_distortion"]:        
         if corr_type == "kendalltau" and len(d["D_TP"]) > 1000:
             print("Omitting Kendall tau because it is infeasible for large matrices")
             continue
@@ -271,7 +275,9 @@ def make_correlation_tables(dirname, txt=""):
             f.write("using metric distortion: ")
             
         f.write(txt)
-        f.write(r"""\label{tab:correlationresults_""" + os.path.basename(dirname) + "}}\n")
+        f.write(r"""\label{tab:correlationresults_"""
+                + os.path.basename(dirname)
+                + "_" + corr_type + "}}\n")
         f.write(r"""\begin{tabular}{""" + "|".join("l" for i in range(1+len(grph_names))) + r"""}
      & """ + " & ".join(grph_tex_names)  + r"""\\
 \hline
@@ -340,12 +346,12 @@ def make_histograms(dirname):
     for name, tex_name in zip(grph_names + syn_names, grph_tex_names + syn_names):
         make_histogram(dirname, d, name, tex_name)
                 
-def make_histogram(dirname, d, name, tex_name):
+def make_histogram(dirname, d, name, tex_name, marks):
     infilename = dirname + "/" + name + ".dat"
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    ax.hist(d[name], 20)
-    ax.set_xlabel(tex_name)
+    ax.hist(d[name], 20, label=tex_name)
+    ax.legend()
     fig.savefig(dirname + "/histogram_" + name + ".pdf")
 
 def compare_sampled_v_calculated(dirname):
@@ -403,7 +409,7 @@ def compare_MFPT_estimate_RW_v_exact(dirname):
         filename = dirname + "/estimate_MFPT_using_RW_" + str(length) + "/MFPTE_len.dat"
         mfpte_len = np.genfromtxt(filename)
         min_vals = 5 # an attempt at reliability
-        print("%d of %d values of length < 5" % (np.sum(mfpte_len < min_vals), len(mfpte_len)))
+        print("%d of %d values of length < 5" % (np.sum(mfpte_len < min_vals), len(mfpte_len)**2))
         mfpte[mfpte_len < min_vals] = np.ma.masked
 
         # mfpt: copy, select sampled only to make it 100x100
