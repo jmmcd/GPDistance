@@ -251,6 +251,7 @@ def make_correlation_tables(dirname, txt=""):
         f.write(line + "\n")
         
     for corr_type in ["spearmanrho", "pearsonr", "kendalltau", "metric_distortion"]:
+    # for corr_type in ["metric_distortion"]:        
         if corr_type == "kendalltau" and len(d["D_TP"]) > 1000:
             print("Omitting Kendall tau because it is infeasible for large matrices")
             continue
@@ -328,6 +329,24 @@ def make_scatter_plot(dirname, d, name1, tex_name1, name2, tex_name2):
     ax.set_ylabel(tex_name2)
     fig.savefig(filename + ".pdf")
     fig.savefig(filename + ".png")
+
+def make_histograms(dirname):
+    syn_names = syntactic_distance_names(dirname)
+    grph_names, grph_tex_names = graph_distance_names(dirname)
+        
+    d = load_data_and_reshape(dirname, syn_names + grph_names)
+
+    # graph and syn names
+    for name, tex_name in zip(grph_names + syn_names, grph_tex_names + syn_names):
+        make_histogram(dirname, d, name, tex_name)
+                
+def make_histogram(dirname, d, name, tex_name):
+    infilename = dirname + "/" + name + ".dat"
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.hist(d[name], 20)
+    ax.set_xlabel(tex_name)
+    fig.savefig(dirname + "/histogram_" + name + ".pdf")
 
 def compare_sampled_v_calculated(dirname):
     
@@ -539,3 +558,5 @@ if __name__ == "__main__":
         make_mds_images(dirname)
     elif cmd == "makeScatterPlots":
         make_scatter_plots(dirname)
+    elif cmd == "makeHistograms":
+        make_histograms(dirname)
