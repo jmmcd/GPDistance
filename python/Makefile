@@ -13,14 +13,14 @@ completeMatricesGALength4:
 completeMatricesGALength4PerInd:
 	cd RandomWalks && ./random_walks.py ../../results/ga_length_4_per_ind/
 
-compareTPCalculatedVSampledDepth1:
-	cd RandomWalks && ./plotting.py compareTPCalculatedVSampled ../../results/depth_1
+compareTPEstimateVExactDepth1:
+	cd RandomWalks && ./plotting.py compareTPEstimateVExact ../../results/depth_1
 
-compareTPCalculatedVSampledDepth2:
-	cd RandomWalks && ./plotting.py compareTPCalculatedVSampled ../../results/depth_2
+compareTPEstimateVExactDepth2:
+	cd RandomWalks && ./plotting.py compareTPEstimateVExact ../../results/depth_2
 
-compareTPCalculatedVSampledGALength4:
-	cd RandomWalks && ./plotting.py compareTPCalculatedVSampled ../../results/ga_length_4
+compareTPEstimateVExactGALength4:
+	cd RandomWalks && ./plotting.py compareTPEstimateVExact ../../results/ga_length_4
 
 compareMFPTEstimateRWVExactDepth1:
 	cd RandomWalks && ./plotting.py compareMFPTEstimateRWVExact ../../results/depth_1

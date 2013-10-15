@@ -13,6 +13,7 @@ from math import *
 import random
 import scipy.stats
 import scipy.stats.mstats
+from random_walks import set_self_transition_zero
 
 # MAXTICKS is 1000 in IndexLocator
 class MyLocator(mpl.ticker.IndexLocator):
@@ -354,7 +355,7 @@ def make_histogram(dirname, d, name, tex_name, marks):
     ax.legend()
     fig.savefig(dirname + "/histogram_" + name + ".pdf")
 
-def compare_sampled_v_calculated(dirname):
+def compare_TP_estimate_v_exact(dirname):
     
     stp = np.genfromtxt(dirname + "/TP_sampled.dat")
     stp = stp.reshape(len(stp)**2)
@@ -423,6 +424,10 @@ def compare_MFPT_estimate_RW_v_exact(dirname):
         indices = get_indices_of_common_entries(all_trees, trees_sampled)
         # the selected indices are into both the rows and columns
         mfpt_tmp = mfpt_tmp[indices][:,indices]
+
+        # mfpte will contain the self-hitting time on the diagonal: we
+        # want zero there for true comparison.
+        set_self_transition_zero(mfpte)
         
         # reshape both
         mfpte = mfpte.reshape(len(mfpte)**2)
@@ -549,8 +554,8 @@ if __name__ == "__main__":
     cmd = sys.argv[1]
     dirname = sys.argv[2]
 
-    if cmd == "compareTPCalculatedVSampled":
-        compare_sampled_v_calculated(dirname)
+    if cmd == "compareTPEstimateVExact":
+        compare_TP_estimate_v_exact(dirname)
     elif cmd == "compareMFPTEstimateRWVExact":
         compare_MFPT_estimate_RW_v_exact(dirname)
     elif cmd == "makeCorrelationTable":
