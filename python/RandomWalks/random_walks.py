@@ -147,6 +147,20 @@ def make_absorbing(tm, dest):
     e[dest] = 1
     tm[dest, :] = e
 
+def MSTP_max_n_steps(x, n):
+    """The probability of reaching state j, starting from state i, in
+    n steps or fewer. Loops are allowed, hence even if n > number of
+    states, these probabilities don't reach 1 in general."""
+    L = len(x)
+    mstp = np.eye(L)
+    for i in range(L):
+        xi = x.copy()
+        make_absorbing(xi, i)
+        # the ith column is copied from the ith column of A^n, where A
+        # is absorbing in state i
+        mstp[:, i] = np.linalg.matrix_power(xi, n)[:, i]
+    return mstp
+
 def read_transition_matrix(filename):
     """Read a transition matrix from a file and return. The matrix
     will have been written in the right format by some Java code."""
