@@ -28,11 +28,13 @@ def graph_distance_names(dirname):
             "MFPT", "CT", "MFPT_VLA", "CT_VLA",
             "RSP", "FE", "CT_amp",
             "SP", "STEPS",
+            "MSTP_10"
             ], [
             "$D_{\mathrm{TP}}$", r"SD$_{\mathrm{TP}}$",
             "MFPT", "CT", "MFPT-VLA", "CT-VLA",
             "RSP", "FE", "CT-amp",
             "SP", "STEPS",
+            "MSTP$_{10}$"
             ]
 
 def syntactic_distance_names(dirname):
@@ -428,7 +430,7 @@ def compare_MFPT_estimate_RW_v_exact(dirname):
         # mfpte will contain the self-hitting time on the diagonal: we
         # want zero there for true comparison.
         set_self_transition_zero(mfpte)
-        
+
         # reshape both
         mfpte = mfpte.reshape(len(mfpte)**2)
         mfpt_tmp = mfpt_tmp.reshape(len(mfpt_tmp)**2)

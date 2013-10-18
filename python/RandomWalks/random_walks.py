@@ -147,7 +147,7 @@ def make_absorbing(tm, dest):
     e[dest] = 1
     tm[dest, :] = e
 
-def MSTP_max_n_steps(x, n):
+def MSTP_max_n_steps(x, n=10):
     """The probability of reaching state j, starting from state i, in
     n steps or fewer. Loops are allowed, hence even if n > number of
     states, these probabilities don't reach 1 in general."""
@@ -159,6 +159,7 @@ def MSTP_max_n_steps(x, n):
         # the ith column is copied from the ith column of A^n, where A
         # is absorbing in state i
         mstp[:, i] = np.linalg.matrix_power(xi, n)[:, i]
+        print i
     return mstp
 
 def read_transition_matrix(filename):
