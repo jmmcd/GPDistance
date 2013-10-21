@@ -53,8 +53,11 @@ def syntactic_distance_names(dirname):
 
 def make_grid_plots(dirname):
     if "depth" in dirname:
-        names = open(dirname + "/all_trees.dat").read().strip().split("\n")
-        names = map(lambda x: x.strip(), names)
+        if "depth_6" not in dirname:
+            names = open(dirname + "/all_trees.dat").read().strip().split("\n")
+            names = map(lambda x: x.strip(), names)
+        else:
+            names = None
     else:
         # Assume GA
         length = int(dirname.strip("/").split("_")[2])
@@ -65,7 +68,8 @@ def make_grid_plots(dirname):
         
     for name in grph_names + syn_names:
         w = np.genfromtxt(dirname + "/" + name + ".dat")
-        assert(len(w) == len(names))
+        if "depth_6" not in dirname:
+            assert(len(w) == len(names))
         make_grid(w, False, dirname + "/" + name)
     print names # better to print them in a list somewhere than in the graph
         
@@ -305,7 +309,10 @@ def load_data_and_reshape(dirname, names):
     d = {}
     for name in names:
         # print("reading " + name)
-        m = np.genfromtxt(dirname + "/" + name + ".dat")
+        if "estimate_MFPT" in dirname:
+            m = np.genfromtxt(dirname + "/" + name + ".dat", usemask=True, missing_values="NaN")
+        else:
+            m = np.genfromtxt(dirname + "/" + name + ".dat")
         d[name] = m.reshape(len(m)**2)
     return d
 
@@ -407,9 +414,9 @@ def compare_MFPT_estimate_RW_v_exact(dirname):
     for length in lengths:
         
         # mfpte: read, mask nan, mask len < 5 (100x100)
-        filename = dirname + "/estimate_MFPT_using_RW_" + str(length) + "/MFPTE.dat"
+        filename = dirname + "/estimate_MFPT_using_RW_" + str(length) + "/MFPT.dat"
         mfpte = np.genfromtxt(filename, usemask=True, missing_values="NaN")
-        filename = dirname + "/estimate_MFPT_using_RW_" + str(length) + "/MFPTE_len.dat"
+        filename = dirname + "/estimate_MFPT_using_RW_" + str(length) + "/MFPT_len.dat"
         mfpte_len = np.genfromtxt(filename)
         min_vals = 5 # an attempt at reliability
         print("%d of %d values of length < 5" % (np.sum(mfpte_len < min_vals), len(mfpte_len)**2))
