@@ -51,27 +51,29 @@ def syntactic_distance_names(dirname):
             "OVD",
             ]
 
-def make_grid_plots(dirname):
+def make_grid_plots(dirname, plot_names=None):
     if "depth" in dirname:
         if "depth_6" not in dirname:
-            names = open(dirname + "/all_trees.dat").read().strip().split("\n")
-            names = map(lambda x: x.strip(), names)
+            ind_names = open(dirname + "/all_trees.dat").read().strip().split("\n")
+            ind_names = map(lambda x: x.strip(), ind_names)
         else:
-            names = None
+            ind_names = None
     else:
         # Assume GA
         length = int(dirname.strip("/").split("_")[2])
-        names = [bin(i)[2:] for i in range(2**length)]
+        ind_names = [bin(i)[2:] for i in range(2**length)]
 
-    syn_names = syntactic_distance_names(dirname)
-    grph_names, grph_tex_names = graph_distance_names(dirname)
+    if plot_names is None:
+        syn_names = syntactic_distance_names(dirname)
+        grph_names, grph_tex_names = graph_distance_names(dirname)
+        plot_names = syn_names + grph_names
         
-    for name in grph_names + syn_names:
-        w = np.genfromtxt(dirname + "/" + name + ".dat")
+    for plot_name in plot_names:
+        w = np.genfromtxt(dirname + "/" + plot_name + ".dat")
         if "depth_6" not in dirname:
-            assert(len(w) == len(names))
-        make_grid(w, False, dirname + "/" + name)
-    print names # better to print them in a list somewhere than in the graph
+            assert(len(w) == len(ind_names))
+        make_grid(w, False, dirname + "/" + plot_name)
+    print ind_names # better to print them in a list somewhere than in the graph
         
 def make_grid(w, names, filename):
     # we dont rescale the data. matshow() internally scales the data
@@ -572,6 +574,8 @@ if __name__ == "__main__":
         make_correlation_tables(dirname, txt)
     elif cmd == "makeGridPlots": 
         make_grid_plots(dirname)
+    elif cmd == "makeGridPlotsByName": 
+        make_grid_plots(dirname, sys.argv[3:])
     elif cmd == "writeSteadyState":
         write_steady_state(dirname)
     elif cmd == "makeMDSImages":
