@@ -275,6 +275,12 @@ public class Mutation {
         return 1.0 / language.countFullTrees();
     }
 
+    public void iterateGrowProbs() {
+        AllTrees at = new AllTrees(language);
+        for (Node t: at.generateEntireSpace(language.maxDepth)) {
+            System.out.println(subtreeGrowProb(t, language.maxDepth));
+        }
+    }
 
     // Mutate an individual lots of times and keep the good ones.
     // Unused for now.
@@ -356,6 +362,8 @@ public class Mutation {
         Mutation mutator = new Mutation(new Language(maxDepth),
                                         maxDepth, new Random());
         System.out.println(mutator.transitionProbability(t, s));
+
+        mutator.iterateGrowProbs();
     }
 }
 
