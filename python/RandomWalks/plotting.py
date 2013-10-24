@@ -28,13 +28,15 @@ def graph_distance_names(dirname):
             "MFPT", "CT", "MFPT_VLA", "CT_VLA",
             "RSP", "FE", "CT_amp",
             "SP", "STEPS",
-            "MSTP_10"
+            "D_MSTP_10",
+            "D_MSTP_100"
             ], [
             "$D_{\mathrm{TP}}$", r"SD$_{\mathrm{TP}}$",
             "MFPT", "CT", "MFPT-VLA", "CT-VLA",
             "RSP", "FE", "CT-amp",
             "SP", "STEPS",
-            "MSTP$_{10}$"
+            r"D$_{\mathrm{MSTP}_{10}}$",
+            r"D$_{\mathrm{MSTP}_{100}}$"
             ]
 
 def syntactic_distance_names(dirname):
@@ -271,8 +273,13 @@ def make_correlation_tables(dirname, txt=""):
         filename = dirname + "/correlation_table_" + corr_type + ".tex"
         f = open(filename, "w")
 
-        f.write(r"""\begin{table*}
-\centering
+        if len(grph_names) > 5:
+            f.write(r"""\begin{table*}
+""")
+        else:
+            f.write(r"""\begin{table}
+""")
+        f.write(r"""\centering
 \caption{Correlations between distance measures """)
         if corr_type == "spearmanrho":
             f.write("using Spearman's rho: ")
@@ -302,7 +309,12 @@ def make_correlation_tables(dirname, txt=""):
             do_line(syn, syn)
 
         f.write(r"""\end{tabular}
-\end{table*}
+""")
+        if len(grph_names) > 5:
+            f.write(r"""\end{table*}
+""")
+        else:
+            f.write(r"""\end{table}
 """)
         f.close()
 
@@ -312,7 +324,19 @@ def load_data_and_reshape(dirname, names):
     for name in names:
         # print("reading " + name)
         if "estimate_MFPT" in dirname:
-            m = np.genfromtxt(dirname + "/" + name + ".dat", usemask=True, missing_values="NaN")
+            # Use a masked array. Mask missing values...
+            m = np.genfromtxt(dirname + "/" + name + ".dat",
+                              usemask=True, missing_values="NaN,nan")
+            # ... mask the diagonal...
+            np.fill_diagonal(m, np.ma.masked)
+
+            # ... and those where mfpte-len < 5...
+            filename = dirname + "/MFPTE_len.dat"
+            mfpte_len = np.genfromtxt(filename)
+            min_vals = 5 # an attempt at reliability
+            m[mfpte_len < min_vals] = np.ma.masked
+
+            # FIXME mask those where MFPT < 0.1?
         else:
             m = np.genfromtxt(dirname + "/" + name + ".dat")
         d[name] = m.reshape(len(m)**2)
@@ -358,11 +382,14 @@ def make_histograms(dirname):
     for name, tex_name in zip(grph_names + syn_names, grph_tex_names + syn_names):
         make_histogram(dirname, d, name, tex_name)
                 
-def make_histogram(dirname, d, name, tex_name, marks):
-    infilename = dirname + "/" + name + ".dat"
+def make_histogram(dirname, d, name, tex_name):
+    if isinstance(d[name], np.ma.core.MaskedArray):
+        data = np.ma.compressed(d[name])
+    else:
+        data = d[name]
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    ax.hist(d[name], 20, label=tex_name)
+    ax.hist(data, 20, label=tex_name)
     ax.legend()
     fig.savefig(dirname + "/histogram_" + name + ".pdf")
 
@@ -417,7 +444,7 @@ def compare_MFPT_estimate_RW_v_exact(dirname):
         
         # mfpte: read, mask nan, mask len < 5 (100x100)
         filename = dirname + "/estimate_MFPT_using_RW_" + str(length) + "/MFPT.dat"
-        mfpte = np.genfromtxt(filename, usemask=True, missing_values="NaN")
+        mfpte = np.genfromtxt(filename, usemask=True, missing_values="NaN,nan")
         filename = dirname + "/estimate_MFPT_using_RW_" + str(length) + "/MFPT_len.dat"
         mfpte_len = np.genfromtxt(filename)
         min_vals = 5 # an attempt at reliability
