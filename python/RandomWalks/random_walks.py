@@ -27,7 +27,7 @@ def analyse_random_walk(dirname):
     walks between nodes i and j. A single file, each line containing
     the tree i, tree j, then the list of samples. Analyse the
     basics."""
-    
+
     n = 20
     f = open(dirname + "/MFPT_random_walking_samples.dat")
     x_mean = np.zeros((n, n))
@@ -139,7 +139,7 @@ def test_mean_mfpt():
             for rep in range(reps):
                 m, ne, mfpt, mean, mean_distinct = mean_mfpt(n, p)
                 print("%d %f" % (ne, mean_distinct))
-            
+
 def make_absorbing(tm, dest):
     """Given a transition matrix, disallow transitions away from the
     given destination -- ie make it an absorbing matrix."""
@@ -189,7 +189,7 @@ def is_positive_definite(x):
         return True
     except np.linalg.LinAlgError:
         return False
-        
+
 def kernel_to_distance(k):
     """Given a kernel, ie a symmetric positive definite matrix of
     similarities between elements, produce a distance."""
@@ -203,7 +203,7 @@ def kernel_to_distance(k):
 
 def set_self_transition_zero(x):
     """Set cost/length of self-transition to zero."""
-    np.fill_diagonal(x, 0.0)        
+    np.fill_diagonal(x, 0.0)
 
 def get_mfpt(x):
     """Calculate mean-first-passage time of a given transition
@@ -215,7 +215,7 @@ def get_mfpt(x):
     x = np.array(ergodic.fmpt(x))
     set_self_transition_zero(x)
     return x
-    
+
 def test_matrix_size(n):
     """Test how big the tm can be before get_mfpt becomes
     slow. n = 4000 is fine, n = 10000 starts paging out (at least 30
@@ -253,7 +253,7 @@ def floyd_warshall_probabilities(adj):
     x = floyd_warshall(x)
     set_self_transition_zero(x)
     return x
-    
+
 def floyd_warshall(adj):
     """Finds the shortest path between all pairs of nodes. For this to
     be useful, the edge weights have to have the right semantics: a
@@ -280,7 +280,7 @@ def floyd_warshall_nsteps(adj):
     x = floyd_warshall(x)
     set_self_transition_zero(x)
     return x
-    
+
 def discretize_probabilities(d):
     """Set the edge cost to 1 if there is a nonzero probability, and
     to infinity if there is a zero probability."""
@@ -349,7 +349,7 @@ def read_and_get_dtp_mfpt_sp_steps(dirname):
     d = get_dtp(t)
     outfilename = dirname + "/D_TP.dat"
     np.savetxt(outfilename, d)
-    
+
     # This gets the mean first passage time, ie the expected length of
     # a random walk.
     f = get_mfpt(t)
@@ -371,14 +371,14 @@ def read_and_get_dtp_mfpt_sp_steps(dirname):
 
 def hamming_distance(x, y):
     return np.sum(x != y)
-    
+
 def generate_ga_tm(dirname, pmut=None):
     """For a bitstring (genetic algorithm) representation of a given
     length, generate a transition matrix with the mutation probability
     pmut. Also generate the Hamming distances. If pmut=None (default),
     exactly one bitflip is performed per individual, rather than using
     a per-gene mutation probability."""
-    
+
     length = int(dirname.strip("/").split("_")[2])
     tm = np.zeros((2**length, 2**length))
     hm = np.zeros((2**length, 2**length))
@@ -426,11 +426,11 @@ def simulate_random_walk(f, nsteps, selected, nsaves):
     sv = selected[0]
     for t in range(nsteps):
         # print_state(sv, rw_started, samples, t)
-        
+
         # when we see a state sv which is of interest
         if sv in selected:
             v = selected.index(sv)
-            
+
             for u, su in enumerate(selected):
 
                 if rw_started[u,v] == rw_started[v,u] == -1:
@@ -459,7 +459,7 @@ def simulate_random_walk(f, nsteps, selected, nsaves):
 
                 else:
                     raise InternalError
-                    
+
         # transition to a new state
         sv = f(sv)
     return samples
@@ -485,17 +485,20 @@ def generate_oz_tm_mfpte(dirname):
     mfpte = scipy.stats.nanmean(samples, axis=2)
     mfpte_std = scipy.stats.nanstd(samples, axis=2)
     mfpt = get_mfpt(tp)
-    
+
     np.savetxt(dirname + "/TP.dat", tp)
     np.savetxt(dirname + "/MFPTE.dat", mfpte)
     np.savetxt(dirname + "/MFPTE_STD.dat", mfpte_std)
-    
+
 def land_of_oz_matrix():
     """From Kemeny & Snell 1976. The states are rain, nice and
     snow."""
     return np.array([[.5, .25, .25], [.5, .0, .5], [.25, .25, .5]])
 
-    
+def SP_v_MFPT_example_matrices():
+    return (np.array([[.1, .5, .4], [.1, .8, .1], [.8, .1, .1]]),
+            np.array([[.1, .5, .4], [.1, .8, .1], [.1, .8, .1]]))
+
 if __name__ == "__main__":
     dirname = sys.argv[1]
 
