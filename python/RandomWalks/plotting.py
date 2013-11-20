@@ -49,7 +49,7 @@ def syntactic_distance_names(dirname):
             "TED",
             "TAD0", "TAD1", "TAD2", "TAD3", "TAD4", "TAD5",
             "FVD",
-            "NCD", 
+            "NCD",
             "OVD",
             ]
 
@@ -69,14 +69,14 @@ def make_grid_plots(dirname, plot_names=None):
         syn_names = syntactic_distance_names(dirname)
         grph_names, grph_tex_names = graph_distance_names(dirname)
         plot_names = syn_names + grph_names
-        
+
     for plot_name in plot_names:
         w = np.genfromtxt(dirname + "/" + plot_name + ".dat")
         if "depth_6" not in dirname:
             assert(len(w) == len(ind_names))
         make_grid(w, False, dirname + "/" + plot_name)
     print ind_names # better to print them in a list somewhere than in the graph
-        
+
 def make_grid(w, names, filename):
     # we dont rescale the data. matshow() internally scales the data
     # so that the smallest numbers go to black and largest to white.
@@ -88,7 +88,7 @@ def make_grid(w, names, filename):
 
     # Can put NaN on the diagonal to avoid plotting it -- makes a bit
     # more space available for other data. But misleading.
-    
+
     # w += np.diag(np.ones(len(w)) * np.nan)
 
     figsize = (10, 10)
@@ -97,10 +97,10 @@ def make_grid(w, names, filename):
     # ax.set_frame_on(False)
     # consider other colour maps: cm.gray_r for reversed, autumn, hot,
     # gist_earth, copper, ocean, some others, or a custom one for
-    # nicer images (not for publication, maybe). 
-    im = ax.matshow(w, cmap=cm.gray, interpolation="nearest")
+    # nicer images (not for publication, maybe).
+    im = ax.matshow(w, cmap=cm.gray, interpolation="none")
     fig.colorbar(im, shrink=0.775)
-    
+
     if names:
         # Turn labels on
         ax.xaxis.set_major_locator(MyLocator(1, 0))
@@ -111,7 +111,7 @@ def make_grid(w, names, filename):
         # Turn them off
         ax.set_xticklabels([], [])
         ax.set_yticklabels([], [])
-    
+
     ax.tick_params(length=0, pad=3.0)
     fig.savefig(filename + ".pdf", dpi=100)
     fig.savefig(filename + ".png", dpi=100)
@@ -158,7 +158,7 @@ def metric_distortion(a, b):
 def metric_distortion_agreement(a, b):
     # because we want a measure of agreement
     return 1.0 / metric_distortion(a, b)
-    
+
 def get_kendall_tau(x, y):
     """Return Kendall's tau, a non-parametric test of association. If
      one of the variables is constant, a FloatingPointError will
@@ -221,7 +221,7 @@ def get_pearson_r(x, y):
      we can just say that there was no association."""
 
     # Make sure we raise any error (so we can catch it), don't just
-    # splat it on the terminal. 
+    # splat it on the terminal.
     old = np.seterr(all='raise')
     try:
         if (isinstance(x, np.ma.core.MaskedArray) or
@@ -239,7 +239,7 @@ def make_correlation_tables(dirname, txt=""):
 
     syn_names = syntactic_distance_names(dirname)
     grph_names, grph_tex_names = graph_distance_names(dirname)
-        
+
     d = load_data_and_reshape(dirname, syn_names + grph_names)
 
     def do_line(dist, dist_name):
@@ -265,7 +265,7 @@ def make_correlation_tables(dirname, txt=""):
             line += r" & {0:1.2f} \hfill {1} ".format(corr, sig)
         line += r"\\"
         f.write(line + "\n")
-        
+
     for corr_type in ["spearmanrho", "pearsonr", "kendalltau", "metric_distortion"]:
         if corr_type == "kendalltau" and len(d["D_TP"]) > 1000:
             print("Omitting Kendall tau because it is infeasible for large matrices")
@@ -289,7 +289,7 @@ def make_correlation_tables(dirname, txt=""):
             f.write("using Kendall's tau: ")
         elif corr_type == "metric_distortion":
             f.write("using metric distortion: ")
-            
+
         f.write(txt)
         f.write(r"""\label{tab:correlationresults_"""
                 + os.path.basename(dirname)
@@ -318,7 +318,7 @@ def make_correlation_tables(dirname, txt=""):
 """)
         f.close()
 
-        
+
 def load_data_and_reshape(dirname, names):
     d = {}
     for name in names:
@@ -345,7 +345,7 @@ def load_data_and_reshape(dirname, names):
 def make_scatter_plots(dirname):
     syn_names = syntactic_distance_names(dirname)
     grph_names, grph_tex_names = graph_distance_names(dirname)
-        
+
     d = load_data_and_reshape(dirname, syn_names + grph_names)
 
     # while we have the data loaded in d, make scatter plots
@@ -356,7 +356,7 @@ def make_scatter_plots(dirname):
             if name1 < name2:
                 # avoid plotting anything against itself, or plotting any pair twice
                 make_scatter_plot(dirname, d, name1, tex_name1, name2, tex_name2)
-                
+
     # graph v syn
     for name1, tex_name1 in zip(syn_names, syn_names):
         for name2, tex_name2 in zip(grph_names, grph_tex_names):
@@ -375,13 +375,13 @@ def make_scatter_plot(dirname, d, name1, tex_name1, name2, tex_name2):
 def make_histograms(dirname):
     syn_names = syntactic_distance_names(dirname)
     grph_names, grph_tex_names = graph_distance_names(dirname)
-        
+
     d = load_data_and_reshape(dirname, syn_names + grph_names)
 
     # graph and syn names
     for name, tex_name in zip(grph_names + syn_names, grph_tex_names + syn_names):
         make_histogram(dirname, d, name, tex_name)
-                
+
 def make_histogram(dirname, d, name, tex_name):
     if isinstance(d[name], np.ma.core.MaskedArray):
         data = np.ma.compressed(d[name])
@@ -394,7 +394,7 @@ def make_histogram(dirname, d, name, tex_name):
     fig.savefig(dirname + "/histogram_" + name + ".pdf")
 
 def compare_TP_estimate_v_exact(dirname):
-    
+
     stp = np.genfromtxt(dirname + "/TP_sampled.dat")
     stp = stp.reshape(len(stp)**2)
     tp = np.genfromtxt(dirname + "/TP.dat")
@@ -428,10 +428,10 @@ def compare_MFPT_estimate_RW_v_exact(dirname):
                 pass
         assert len(result) == len(b)
         return result
-    
+
     filename = dirname + "/MFPT.dat"
     mfpt = np.genfromtxt(filename)
-        
+
     filename = dirname + "/compare_MFPT_estimate_RW_v_exact.tex"
     f = open(filename, "w")
 
@@ -441,7 +441,7 @@ def compare_MFPT_estimate_RW_v_exact(dirname):
         # NB with 18, too few values to run correlation
         lengths = [180, 1800, 18000]
     for length in lengths:
-        
+
         # mfpte: read, mask nan, mask len < 5 (100x100)
         filename = dirname + "/estimate_MFPT_using_RW_" + str(length) + "/MFPT.dat"
         mfpte = np.genfromtxt(filename, usemask=True, missing_values="NaN,nan")
@@ -487,7 +487,7 @@ def compare_MFPT_estimate_RW_v_exact(dirname):
             f.write("Omitting Kendall tau because it is infeasible for large matrices. ")
         f.write("\n")
     f.close()
-    
+
 def write_steady_state(dirname):
     """Get steady state, write it out and plot it. Also calculate the
     in-degree of each node, by summing columns. Plot that on the same
@@ -507,7 +507,7 @@ def write_steady_state(dirname):
          + "and normalised in-degree vector"
          + str(scipy.stats.pearsonr(ss, cs)) + ". ")
     open(dirname + "/in_degree.tex", "w").write(s)
-    
+
     fig = plt.figure(figsize=(6.5, 3.5))
     ax = fig.add_subplot(1, 1, 1)
     ax.set_yscale('log')
@@ -545,7 +545,7 @@ def make_mds_images(dirname):
     for name in names:
         m = np.genfromtxt(dirname + "/" + name + ".dat")
         make_mds_image(m, dirname + "/" + name + "_MDS", labels)
-    
+
 def make_mds_image(m, filename, labels=None):
     """Given a matrix of distances, project into 2D space using
     multi-dimensional scaling and produce an image."""
@@ -558,7 +558,7 @@ def make_mds_image(m, filename, labels=None):
     except ValueError:
         print("Can't run MDS for " + filename + " because it contains infinities.")
         return
-    
+
     # Get the embedding in 2d space
     p = f.embedding_
 
@@ -579,7 +579,7 @@ def make_mds_image(m, filename, labels=None):
         for i in indices:
             plt.text(p[i,0], p[i,1], labels[i], style='italic',
                     bbox={'facecolor':'red', 'alpha':0.5, 'pad':10})
-    
+
     plt.savefig(filename + ".png")
     plt.savefig(filename + ".pdf")
 
@@ -599,9 +599,9 @@ if __name__ == "__main__":
     elif cmd == "makeCorrelationTable":
         txt = sys.argv[3]
         make_correlation_tables(dirname, txt)
-    elif cmd == "makeGridPlots": 
+    elif cmd == "makeGridPlots":
         make_grid_plots(dirname)
-    elif cmd == "makeGridPlotsByName": 
+    elif cmd == "makeGridPlotsByName":
         make_grid_plots(dirname, sys.argv[3:])
     elif cmd == "writeSteadyState":
         write_steady_state(dirname)
