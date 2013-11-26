@@ -98,7 +98,8 @@ def make_grid(w, names, filename):
     # consider other colour maps: cm.gray_r for reversed, autumn, hot,
     # gist_earth, copper, ocean, some others, or a custom one for
     # nicer images (not for publication, maybe).
-    im = ax.matshow(w, cmap=cm.gray, interpolation="none")
+    # im = ax.matshow(w, cmap=cm.gray, interpolation="none")
+    im = ax.matshow(w, cmap=cm.gray, interpolation="nearest")
     fig.colorbar(im, shrink=0.775)
 
     if names:
@@ -508,14 +509,14 @@ def write_steady_state(dirname):
          + str(scipy.stats.pearsonr(ss, cs)) + ". ")
     open(dirname + "/in_degree.tex", "w").write(s)
 
-    fig = plt.figure(figsize=(6.5, 3.5))
+    fig = plt.figure(figsize=(5.0, 2.5))
     ax = fig.add_subplot(1, 1, 1)
     ax.set_yscale('log')
     offset = int(log(len(ss), 2)) + 1
     ax.set_xlim((-offset, len(ss)-1+offset))
     plt.ylabel("Log-probability")
-    ax.plot(ss, label="Steady-state", lw=2)
-    ax.plot(cs, label="Normalised in-degree", lw=2)
+    ax.plot(ss, label="Stationary state", lw=2.5, color=(0, 0, 0))
+    ax.plot(cs, label="Normalised in-degree", lw=1.5, color=(0.6, 0.6, 0.6))
     ax.set_xticklabels([], [])
     if ("depth_1" in dirname) or ("ga_length" in dirname):
         plt.legend(loc=3)

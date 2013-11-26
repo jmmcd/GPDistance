@@ -13,6 +13,7 @@ import random
 import sys
 import os
 import itertools
+from collections import OrderedDict
 
 # this import is from
 # http://www.pysal.org/library/spatial_dynamics/ergodic.html: it
@@ -372,14 +373,13 @@ def read_and_get_dtp_mfpt_sp_steps(dirname):
 def hamming_distance(x, y):
     return np.sum(x != y)
 
-def generate_ga_tm(dirname, pmut=None):
+def generate_ga_tm(length, pmut=None):
     """For a bitstring (genetic algorithm) representation of a given
     length, generate a transition matrix with the mutation probability
     pmut. Also generate the Hamming distances. If pmut=None (default),
     exactly one bitflip is performed per individual, rather than using
     a per-gene mutation probability."""
 
-    length = int(dirname.strip("/").split("_")[2])
     tm = np.zeros((2**length, 2**length))
     hm = np.zeros((2**length, 2**length))
     for i, indi in enumerate(itertools.product(*[(0, 1) for x in range(length)])):
@@ -394,6 +394,15 @@ def generate_ga_tm(dirname, pmut=None):
                     # else leave it at zero
             else:
                 tm[i][j] = (pmut ** h) * ((1.0 - pmut) ** (length - h))
+    return tm, hm
+
+def onemax_fitvals(length):
+    return [np.sum(ind) for ind in
+            itertools.product(*[(0, 1) for x in range(length)])]
+
+def ga_tm_wrapper(dirname, pmut=None):
+    length = int(dirname.strip("/").split("_")[2])
+    tm, hm = generate_ga_tm(length, pmut)
     outfilename = dirname + "/TP.dat"
     np.savetxt(outfilename, tm)
     outfilename = dirname + "/Hamming.dat"
@@ -477,6 +486,34 @@ def roulette_wheel(a):
             return i
     raise ValueError("Unexpected: failed to find a slot in roulette wheel")
 
+def random_search(fitvals, steps, allow_repeat=True):
+    """Allow replacement, for this particular experiment."""
+    if allow_repeat:
+        samples = [random.choice(range(len(fitvals))) for i in range(steps)]
+    else:
+        samples = random.sample(range(len(fitvals)), steps)
+    fitness_samples = [fitvals[sample] for sample in samples]
+    return samples, fitness_samples, min(fitness_samples)
+
+def hillclimb(tp, fitvals, steps, rw=False):
+    s = random.randint(0, len(fitvals)-1)
+    samples = []
+    fitness_samples = []
+    fitval = fitvals[s]
+    for i in range(steps):
+        t = roulette_wheel(tp[s])
+        if rw:
+            s = t
+            fitval = fitvals[t]
+        else:
+            # note we are maximising!
+            if fitvals[t] > fitval:
+                s = t
+                fitval = fitvals[t]
+        samples.append(s)
+        fitness_samples.append(fitval)
+    return samples, fitness_samples, fitval
+
 def generate_oz_tm_mfpte(dirname):
     tp = land_of_oz_matrix()
     samples = simulate_random_walk(
@@ -490,6 +527,9 @@ def generate_oz_tm_mfpte(dirname):
     np.savetxt(dirname + "/MFPTE.dat", mfpte)
     np.savetxt(dirname + "/MFPTE_STD.dat", mfpte_std)
 
+def uniformify(tp, p):
+    return (tp**p) / (np.sum(tp**p, 1).reshape((len(tp), 1)))
+
 def land_of_oz_matrix():
     """From Kemeny & Snell 1976. The states are rain, nice and
     snow."""
@@ -499,6 +539,163 @@ def SP_v_MFPT_example_matrices():
     return (np.array([[.1, .5, .4], [.1, .8, .1], [.8, .1, .1]]),
             np.array([[.1, .5, .4], [.1, .8, .1], [.1, .8, .1]]))
 
+def permute_vals(v, k):
+    """v is a list of values. We permute by swapping pairs, k times.
+    We copy v first, to avoid mutating the original."""
+    v = v[:]
+    L = len(v)
+    for x in range(k):
+        i, j = random.randint(0, L-1), random.randint(0, L-1)
+        v[i], v[j] = v[j], v[i]
+    return v
+
+def mu_sigma(t):
+    """Calculate mean(stddev_1(t)) and stddev(stddev_1(t)), ie the
+    mean of row stddevs and the stddev of row stddevs."""
+    sigma = np.std(t, 1)
+    return np.mean(sigma), np.std(sigma)
+
+def ga_hc_experiment():
+    """Run some hill-climbs on variations of a GA space. Report
+    performance."""
+    uniformify_vals = [0.1, 0.5, .75, 0.9, 1.0, 1.0/0.9, 1.0/.75, 2.0, 10.0]
+    noise_vals = [0, 1, 10, 100, 1000]
+    results = OrderedDict()
+
+    ga_length = 10
+    ga_tp, _ = generate_ga_tm(ga_length, pmut=1.0/ga_length)
+    ga_fitvals = onemax_fitvals(ga_length)
+
+    mu_sigma_vals = [mu_sigma(uniformify(ga_tp, uniformify_val))
+                     for uniformify_val in uniformify_vals]
+
+    reps = 30
+    steps = 50
+    for rep_name, tp, fitvals in [["ga", ga_tp, ga_fitvals]]:
+
+        for noise_val in noise_vals:
+
+            tmp_fit = permute_vals(fitvals, noise_val)
+
+            for uniformify_val in uniformify_vals:
+                for rep in range(reps):
+                    tp_tmp = uniformify(tp, uniformify_val)
+                    samples, fit_samples, best = hillclimb(tp_tmp, tmp_fit,
+                                                           steps, rw=False)
+                    x = best
+                    results[rep_name, uniformify_val, noise_val, rep] = x
+    return results, mu_sigma_vals
+
+def plot_ga_hc_results(results, mu_sigma_vals):
+    """Plot the results of the GA HC experiments above."""
+    uniformify_vals = [0.1, 0.5, .75, 0.9, 1.0, 1.0/0.9, 1.0/.75, 2.0, 10.0]
+    noise_vals = [0, 1, 10, 100, 1000]
+
+    reps = 30
+    for rep_name in ["ga"]:
+        for noise_val in noise_vals:
+            mu = []
+            err = []
+
+            for uniformify_val in uniformify_vals:
+                x = [results[rep_name, uniformify_val, noise_val, rep]
+                     for rep in range(reps)]
+                mu.append(np.mean(x))
+                err.append(np.std(x))
+
+            plt.figure(figsize=(5, 2.5))
+            plt.errorbar(mu_sigma_vals, mu, yerr=err, lw=3)
+            plt.title(rep_name.upper() + r" OneMax with noise %d" % noise_val)
+            plt.xlabel(r"$\mu(\sigma(p))$")
+            plt.ylabel("Fitness")
+            plt.ylim(0, 10)
+            filename = "/Users/jmmcd/Dropbox/GPSteadyState/results/" + rep_name + "_noise_%d_hc" % noise_val
+            plt.savefig(filename + ".pdf")
+
+def ga_gp_rw_experiment():
+    uniformify_vals = [0.1, 0.5, .75, 0.9, 1.0, 1.0/0.9, 1.0/.75, 2.0, 10.0]
+    results = OrderedDict()
+
+    ga_length = 10
+    # ga_tp, _ = generate_ga_tm(ga_length, pmut=1.0/ga_length)
+    ga_tp = np.genfromtxt("/Users/jmmcd/Dropbox/GPDistance/results/ga_length_10/TP.dat")
+    ga_fit = onemax_fitvals(ga_length)
+
+    gp_tp = np.genfromtxt("/Users/jmmcd/Dropbox/GPDistance/results/depth_2/TP.dat")
+    gp_trees = generate_trees.trees_of_depth_LE(2,
+                                                ("x0", "x1"),
+                                                OrderedDict([("*", 2), ("+", 2),
+                                                             ("-", 2), ("AQ", 2)]),
+                                                as_string=False)
+    srff = fitness.benchmarks("pagie-2d")
+    gp_fit = [1.0 / srff.get_semantics(gp.make_fn(gp_tree[0]))[0]
+              for gp_tree in gp_trees]
+
+    reps = 100
+    steps = 50
+
+    inds = 0, len(gp_fit)-1
+    hc_encounters = [0.0, 0.0]
+    rw_encounters = [0.0, 0.0]
+    for rep_name, tp, fitvals in [["gp", gp_tp, gp_fit]]:
+        for rep in range(reps):
+            samples, fit_samples, best = hillclimb(gp_tp, fitvals, steps, rw=False)
+            for i in range(2):
+                if inds[i] in samples:
+                    hc_encounters[i] += 1.0 / reps
+            samples, fit_samples, best = hillclimb(gp_tp, fitvals, steps, rw=True)
+            for i in range(2):
+                if inds[i] in samples:
+                    rw_encounters[i] += 1.0 / reps
+    print "hc_encounters", hc_encounters
+    print "rw_encounters", rw_encounters
+    return
+
+    reps = 30
+    for rep_name, tp, fitvals in [["ga", ga_tp, ga_fit],
+                                  ["gp", gp_tp, gp_fit]]:
+        for uniformify_val in uniformify_vals:
+            for rep in range(reps):
+                tp_tmp = uniformify(tp, uniformify_val)
+                samples, fit_samples, best = hillclimb(tp_tmp, fitvals, steps, rw=True)
+                x = float(len(set(samples))) / len(samples)
+                results[rep_name, uniformify_val, rep] = x
+    return results, ga_tp, ga_fit, gp_tp, gp_fit
+
+
+def plot_ga_gp_rw_results(results, ga_tp, gp_tp):
+    uniformify_vals = [0.1, 0.5, .75, 0.9, 1.0, 1.0/0.9, 1.0/.75, 2.0, 10.0]
+
+
+    reps = 30
+    for rep_name in "ga", "gp":
+
+        if rep_name == "ga":
+            mu_sigma_vals = [mu_sigma(uniformify(ga_tp, uniformify_val))
+                             for uniformify_val in uniformify_vals]
+        else:
+            mu_sigma_vals = [mu_sigma(uniformify(gp_tp, uniformify_val))
+                             for uniformify_val in uniformify_vals]
+
+        mu = []
+        err = []
+        for uniformify_val in uniformify_vals:
+            x = [results[rep_name, uniformify_val, rep]
+                 for rep in range(reps)]
+            mu.append(np.mean(x))
+            err.append(np.std(x))
+
+        plt.figure(figsize=(5, 2.5))
+        plt.errorbar(mu_sigma_vals, mu, yerr=err, lw=3)
+        plt.title(rep_name.upper())
+        plt.xlabel(r"$\mu(\sigma(p))$")
+        plt.ylabel("Exploration")
+        plt.ylim(0, 1)
+        filename = "/Users/jmmcd/Dropbox/GPSteadyState/results/" + rep_name + "_uniformify_rw"
+        plt.savefig(filename + ".pdf")
+
+
+
 if __name__ == "__main__":
     dirname = sys.argv[1]
 
@@ -507,9 +704,9 @@ if __name__ == "__main__":
     #     pass
     # elif "ga" in dirname:
     #     if "per_ind" in dirname:
-    #         generate_ga_tm(dirname)
+    #         ga_tm_wrapper(dirname)
     #     else:
-    #         generate_ga_tm(dirname, 0.1)
+    #         ga_tm_wrapper(dirname, 0.1)
     # elif "land_of_oz" in dirname:
     #     generate_oz_tm_mfpte(dirname)
     # read_and_get_dtp_mfpt_sp_steps(dirname)

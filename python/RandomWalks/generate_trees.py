@@ -2,8 +2,9 @@
 
 import sys
 from itertools import product
+from collections import OrderedDict
 
-def trees_of_depth(n, vars, fns):
+def trees_of_depth(n, vars, fns, as_string=True):
     """Generate all trees of exactly depth n, along with their
     depths."""
     if n == 0:
@@ -12,24 +13,27 @@ def trees_of_depth(n, vars, fns):
     else:
         for fn in fns:
             for children in product(
-                trees_of_depth_LE(n-1, vars, fns), repeat=fns[fn]):
+                trees_of_depth_LE(n-1, vars, fns, as_string), repeat=fns[fn]):
                 if any(child[1] == n-1 for child in children):
-                    yield ("(" + fn + " "
-                           + " ".join(child[0] for child in children)
-                           + ")"), n
-                    
-def trees_of_depth_LE(n, vars, fns):
+                    if as_string:
+                        yield ("(" + fn + " "
+                               + " ".join(child[0] for child in children)
+                               + ")"), n
+                    else:
+                        yield [fn] + [child[0] for child in children], n
+
+def trees_of_depth_LE(n, vars, fns, as_string=True):
     """Generate all trees up to and including depth n, along with
     their depths."""
     for d in range(n+1):
-        for item, d1 in trees_of_depth(d, vars, fns):
+        for item, d1 in trees_of_depth(d, vars, fns, as_string):
             yield item, d1
 
 def count_trees_of_depth_LE(n, vars, fns):
     """Count the number of trees of depth less than or equal to n."""
     return sum(count_trees_of_depth(i, vars, fns)
                for i in range(n+1))
-            
+
 def count_trees_of_depth(n, vars, fns):
     """Count the trees of depth exactly n."""
     if n == 0:
@@ -75,12 +79,12 @@ if __name__ == "__main__":
 
     # Given this language, there are 2 trees of depth 0, 18 of depth
     # 1, 1298 of depth 2, and 6739218 of depth 3.
-    vars = list("xy")
-    fns = {"+": 2, "-": 2, "*": 2, "/": 2}
-    
+    vars = ["x0", "x1"]
+    fns = OrderedDict([("*", 2), ("+", 2), ("-", 2), ("AQ", 2)])
+
     n = int(sys.argv[1])
     if len(sys.argv) > 2 and sys.argv[2] == "enumerate":
-        for item, d in trees_of_depth_LE(n, vars, fns):
+        for item, d in trees_of_depth_LE(n, vars, fns, False):
             print(item)
     elif len(sys.argv) > 2 and sys.argv[2] == "shapes":
         for item, d in shapes_of_depth_LE(n):
