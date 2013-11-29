@@ -25,16 +25,19 @@ def graph_distance_names(dirname):
     else:
         return [
             "D_TP", "SD_TP",
-            "MFPT", "CT", "MFPT_VLA", "CT_VLA",
-            "RSP", "FE", "CT_amp",
             "SP", "STEPS",
+            "MFPT", "CT",
+            "MFPT_VLA", "CT_VLA",
+            "CT_amp", "RSP", "FE",
             "D_MSTP_10",
             "D_MSTP_100"
             ], [
-            "$D_{\mathrm{TP}}$", r"SD$_{\mathrm{TP}}$",
-            "MFPT", "CT", "MFPT-VLA", "CT-VLA",
-            "RSP", "FE", "CT-amp",
+            "$D_{\mathrm{TP}}$",
+            r"SD$_{\mathrm{TP}}$",
             "SP", "STEPS",
+            "MFPT", "CT",
+            "MFPTV", "CTV",
+            "ACT", "RSP", "FED",
             r"D$_{\mathrm{MSTP}_{10}}$",
             r"D$_{\mathrm{MSTP}_{100}}$"
             ]
@@ -90,6 +93,13 @@ def make_grid(w, names, filename):
     # more space available for other data. But misleading.
 
     # w += np.diag(np.ones(len(w)) * np.nan)
+
+    # if w contains any NaNs we'll get a misleading result: they won't
+    # be plotted, so will appear white, as will the largest finite
+    # values of w. So first, replace them with a large value -- 100
+    # times the largest finite value.
+    realmax = np.max(w[np.isfinite(w)])
+    np.copyto(w, realmax * 100.0, where=~np.isfinite(w))
 
     figsize = (10, 10)
     fig = plt.figure(figsize=figsize)
@@ -281,7 +291,7 @@ def make_correlation_tables(dirname, txt=""):
             f.write(r"""\begin{table}
 """)
         f.write(r"""\centering
-\caption{Correlations between distance measures """)
+\caption{Correlations among distance measures """)
         if corr_type == "spearmanrho":
             f.write("using Spearman's rho: ")
         elif corr_type == "pearsonr":
@@ -289,7 +299,7 @@ def make_correlation_tables(dirname, txt=""):
         elif corr_type == "kendalltau":
             f.write("using Kendall's tau: ")
         elif corr_type == "metric_distortion":
-            f.write("using metric distortion: ")
+            f.write("using inverse metric distortion: ")
 
         f.write(txt)
         f.write(r"""\label{tab:correlationresults_"""
@@ -388,10 +398,11 @@ def make_histogram(dirname, d, name, tex_name):
         data = np.ma.compressed(d[name])
     else:
         data = d[name]
-    fig = plt.figure()
+    fig = plt.figure(figsize=(4, 3))
     ax = fig.add_subplot(1, 1, 1)
     ax.hist(data, 20, label=tex_name)
-    ax.legend()
+    ax.set_yticks([])
+    # ax.legend()
     fig.savefig(dirname + "/histogram_" + name + ".pdf")
 
 def compare_TP_estimate_v_exact(dirname):
@@ -536,12 +547,12 @@ def make_mds_images(dirname):
     SD_TP in a space like ga_length_4_per_ind."""
 
     if "depth" in dirname:
-        names = ["CT", "SD_TP", "TED", "TAD0", "OVD", "FVD"]
+        names = ["CT", "SD_TP", "FE", "TED", "TAD0", "TAD2", "OVD", "FVD"]
         # read in the trees
         filename = dirname + "/all_trees.dat"
         labels = open(filename).read().strip().split("\n")
     else:
-        names = ["CT", "SD_TP", "Hamming"]
+        names = ["CT", "SD_TP", "FE", "Hamming"]
         labels = None
     for name in names:
         m = np.genfromtxt(dirname + "/" + name + ".dat")
@@ -575,11 +586,17 @@ def make_mds_image(m, filename, labels=None):
     # cmap=cm.autumn)
 
     if labels != None:
-        # hard-coded to depth-2
+        print filename
+        # hard-coded for GP depth-2
         indices = [0, 2, 50, 52]
         for i in indices:
-            plt.text(p[i,0], p[i,1], labels[i], style='italic',
-                    bbox={'facecolor':'red', 'alpha':0.5, 'pad':10})
+            print labels[i], p[i,0], p[i,1]
+            # can print some labels directly on the graph as follows,
+            # but maybe it's better done manually, after printing
+            # their locations to terminal?
+
+            # plt.text(p[i,0], p[i,1], labels[i], style='italic',
+            #         bbox={'facecolor':'red', 'alpha':0.5, 'pad':10})
 
     plt.savefig(filename + ".png")
     plt.savefig(filename + ".pdf")
