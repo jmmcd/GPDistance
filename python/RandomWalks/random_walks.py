@@ -120,6 +120,15 @@ def make_random_binary_matrix(n, p):
         if np.all(np.isfinite(steps)):
             return d
 
+def map_infinity_to_large(w):
+    """If there any infinities in w, they can cause numerical errors.
+    In some situations, it can be adequately solved by putting in an
+    arbitrary large value instead. We map to 100 times the largest
+    finite value in w."""
+    is_w_finite = np.isfinite(w)
+    realmax = np.max(w[is_w_finite])
+    np.copyto(w, realmax * 100.0, where=~is_w_finite)
+
 def mean_mfpt(n, p):
     """n is the number of nodes, p the probability of each possible
     edge existing. idea is to see if there's a correlation between

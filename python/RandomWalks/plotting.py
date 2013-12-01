@@ -13,7 +13,7 @@ from math import *
 import random
 import scipy.stats
 import scipy.stats.mstats
-from random_walks import set_self_transition_zero
+from random_walks import set_self_transition_zero, map_infinity_to_large
 
 # MAXTICKS is 1000 in IndexLocator
 class MyLocator(mpl.ticker.IndexLocator):
@@ -98,8 +98,7 @@ def make_grid(w, names, filename):
     # be plotted, so will appear white, as will the largest finite
     # values of w. So first, replace them with a large value -- 100
     # times the largest finite value.
-    realmax = np.max(w[np.isfinite(w)])
-    np.copyto(w, realmax * 100.0, where=~np.isfinite(w))
+    map_infinity_to_large(w)
 
     figsize = (10, 10)
     fig = plt.figure(figsize=figsize)
@@ -138,12 +137,13 @@ def metric_distortion(a, b):
 
     See Gupta's paper on embeddings: given a mapping f: X->Y (both
     metric spaces), the contraction of f is sup(d_X(x, y)/d_Y(f(x),
-    f(y))); the expansion of f is sup(d_Y(f(x), f(y))/d_X(x, y)). The
-    distortion is contraction * expansion. The best (lowest) possible
-    value is 1. To avoid divide-by-zero, this assumes d(x, y) != 0 --
-    ie x != y, and d is strictly positive for distinct elements, which
-    is true of any metric but not true of some of our distance
-    functions. Below, we overwrite any divide-by-zeros just in case.
+    f(y))); the expansion of f is sup(d_Y(f(x), f(y))/d_X(x, y)). In
+    both cases the value is over all x != y. The distortion is
+    contraction * expansion. The best (lowest) possible value is 1. To
+    avoid divide-by-zero, this assumes d(x, y) != 0 -- ie x != y, and
+    d is strictly positive for distinct elements, which is true of any
+    metric and all of our non-metric distance functions also. We just
+    overwrite any non-finite values with -1 to exclude the x=y cases.
 
     In our case, X = Y = the search space, eg trees of depth 2 or
     less. d_X is one metric, eg TED; d_Y is another, eg D_TP; f is the
@@ -155,16 +155,16 @@ def metric_distortion(a, b):
     Also, it means that the order of arguments (a, b) is
     unimportant."""
 
-    old = np.seterr(divide="ignore")
+    old = np.seterr(divide="ignore", invalid="ignore")
     ab = a/b
     ab[~np.isfinite(ab)] = -1
     contraction = np.max(ab)
-
     ba = b/a
     ba[~np.isfinite(ba)] = -1
     expansion = np.max(ba)
+    distortion = expansion * contraction
     np.seterr(**old)
-    return expansion * contraction
+    return distortion
 
 def metric_distortion_agreement(a, b):
     # because we want a measure of agreement
@@ -251,12 +251,12 @@ def make_correlation_tables(dirname, txt=""):
     syn_names = syntactic_distance_names(dirname)
     grph_names, grph_tex_names = graph_distance_names(dirname)
 
-    d = load_data_and_reshape(dirname, syn_names + grph_names)
+    d = load_data_and_reshape(dirname, syn_names + grph_names, remap_infinity=True)
 
     def do_line(dist, dist_name):
         line = dist_name.replace("_TP", r"$_{\mathrm{TP}}$")
         for graph_distance in grph_names:
-            print("getting association between " + graph_distance + " " + dist)
+            print(corr_type, "getting association between " + graph_distance + " " + dist)
             if corr_type == "spearmanrho":
                 corr, p = get_spearman_rho(d[graph_distance], d[dist])
             elif corr_type == "kendalltau":
@@ -330,7 +330,7 @@ def make_correlation_tables(dirname, txt=""):
         f.close()
 
 
-def load_data_and_reshape(dirname, names):
+def load_data_and_reshape(dirname, names, remap_infinity=False):
     d = {}
     for name in names:
         # print("reading " + name)
@@ -350,6 +350,11 @@ def load_data_and_reshape(dirname, names):
             # FIXME mask those where MFPT < 0.1?
         else:
             m = np.genfromtxt(dirname + "/" + name + ".dat")
+
+        if remap_infinity:
+            # substitute an arbitrary large value for any infinities
+            map_infinity_to_large(m)
+
         d[name] = m.reshape(len(m)**2)
     return d
 
@@ -575,7 +580,7 @@ def make_mds_image(m, filename, labels=None):
     p = f.embedding_
 
     # Make an image
-    plt.figure()
+    plt.figure(figsize=(5, 5))
     # x- and y-coordinates
     plt.axes().set_aspect('equal')
     plt.scatter(p[:,0], p[:,1],
