@@ -14,6 +14,8 @@ import sys
 import os
 import itertools
 from collections import OrderedDict
+import matplotlib.pyplot as plt
+import cPickle as pickle
 
 # this import is from
 # http://www.pysal.org/library/spatial_dynamics/ergodic.html: it
@@ -564,6 +566,30 @@ def mu_sigma(t):
     sigma = np.std(t, 1)
     return np.mean(sigma), np.std(sigma)
 
+
+def run_ga_hc_and_ga_gp_rw_experiments_EuroGP_2014(dirname):
+    """Run the simple experiments required for the EuroGP 2014 paper
+    "Measuring mutation operators' exploration-exploitation behaviour
+    and long-term biases". This assumes that the GA length-10 and GP
+    depth-2 transition matrices have already been generated."""
+
+    # run, get results
+    ga_hc_results, mu_sigma_vals = ga_hc_experiment()
+    ga_gp_rw_results, ga_fit, gp_fit = ga_gp_rw_experiment(dirname)
+
+    # save results
+    results = (ga_hc_results, ga_gp_rw_results, ga_fit, gp_fit, mu_sigma_vals)
+    pickle.dump(results, file(dirname + "EuroGP_2014_results.pkl", "w"))
+
+    # OR (instead of running, if already run), restore from save
+    # results = pickle.load(file(dirname + "EuroGP_2014_results.pkl"))
+    # (ga_hc_results, ga_gp_rw_results, ga_fit, gp_fit, mu_sigma_vals) = results
+
+    # plot
+    plot_ga_hc_results(ga_hc_results, mu_sigma_vals, dirname)
+    plot_ga_gp_rw_results(ga_gp_rw_results, mu_sigma_vals)
+
+
 def ga_hc_experiment():
     """Run some hill-climbs on variations of a GA space. Report
     performance."""
@@ -578,7 +604,7 @@ def ga_hc_experiment():
     mu_sigma_vals = [mu_sigma(uniformify(ga_tp, uniformify_val))
                      for uniformify_val in uniformify_vals]
 
-    reps = 30
+    reps = 3 # 30
     steps = 50
     for rep_name, tp, fitvals in [["ga", ga_tp, ga_fitvals]]:
 
@@ -595,12 +621,12 @@ def ga_hc_experiment():
                     results[rep_name, uniformify_val, noise_val, rep] = x
     return results, mu_sigma_vals
 
-def plot_ga_hc_results(results, mu_sigma_vals):
+def plot_ga_hc_results(results, mu_sigma_vals, dirname):
     """Plot the results of the GA HC experiments above."""
     uniformify_vals = [0.1, 0.5, .75, 0.9, 1.0, 1.0/0.9, 1.0/.75, 2.0, 10.0]
     noise_vals = [0, 1, 10, 100, 1000]
 
-    reps = 30
+    reps = 3 # 30
     for rep_name in ["ga"]:
         for noise_val in noise_vals:
             mu = []
@@ -615,32 +641,44 @@ def plot_ga_hc_results(results, mu_sigma_vals):
             plt.figure(figsize=(5, 2.5))
             plt.errorbar(mu_sigma_vals, mu, yerr=err, lw=3)
             plt.title(rep_name.upper() + r" OneMax with noise %d" % noise_val)
-            plt.xlabel(r"$\mu(\sigma(p))$")
+            plt.xlabel(r"$\mu(\sigma_r(p))$", fontsize=16)
             plt.ylabel("Fitness")
             plt.ylim(0, 10)
-            filename = "/Users/jmmcd/Dropbox/GPSteadyState/results/" + rep_name + "_noise_%d_hc" % noise_val
+            filename = dirname + rep_name + "_noise_%d_hc" % noise_val
             plt.savefig(filename + ".pdf")
+            plt.savefig(filename + ".eps")
 
-def ga_gp_rw_experiment():
+def ga_gp_rw_experiment(dirname):
     uniformify_vals = [0.1, 0.5, .75, 0.9, 1.0, 1.0/0.9, 1.0/.75, 2.0, 10.0]
     results = OrderedDict()
 
     ga_length = 10
+    gp_depth = 2
+
     # ga_tp, _ = generate_ga_tm(ga_length, pmut=1.0/ga_length)
-    ga_tp = np.genfromtxt("/Users/jmmcd/Dropbox/GPDistance/results/ga_length_10/TP.dat")
+    ga_tp = np.genfromtxt(dirname + "/ga_length_" + str(ga_length) + "/TP.dat")
     ga_fit = onemax_fitvals(ga_length)
 
-    gp_tp = np.genfromtxt("/Users/jmmcd/Dropbox/GPDistance/results/depth_2/TP.dat")
+    gp_tp = np.genfromtxt(dirname + "/depth_" + str(gp_depth) + "/TP.dat")
+    import generate_trees
     gp_trees = generate_trees.trees_of_depth_LE(2,
                                                 ("x0", "x1"),
                                                 OrderedDict([("*", 2), ("+", 2),
                                                              ("-", 2), ("AQ", 2)]),
                                                 as_string=False)
+    try:
+        import fitness
+    except:
+        print "Download fitness.py from https://github.com/jmmcd/PODI/blob/master/src/fitness.py"
+        print "FIXME are gp.py and others also needed?"
+        sys.exit(0)
+
     srff = fitness.benchmarks("pagie-2d")
     gp_fit = [1.0 / srff.get_semantics(gp.make_fn(gp_tree[0]))[0]
               for gp_tree in gp_trees]
 
-    reps = 100
+    # Do the "probability of encounter" experiment first
+    reps = 3 # 100
     steps = 50
 
     inds = 0, len(gp_fit)-1
@@ -658,9 +696,9 @@ def ga_gp_rw_experiment():
                     rw_encounters[i] += 1.0 / reps
     print "hc_encounters", hc_encounters
     print "rw_encounters", rw_encounters
-    return
 
-    reps = 30
+    # now the GA v GP hillclimb experiments
+    reps = 3 # 30
     for rep_name, tp, fitvals in [["ga", ga_tp, ga_fit],
                                   ["gp", gp_tp, gp_fit]]:
         for uniformify_val in uniformify_vals:
@@ -669,22 +707,13 @@ def ga_gp_rw_experiment():
                 samples, fit_samples, best = hillclimb(tp_tmp, fitvals, steps, rw=True)
                 x = float(len(set(samples))) / len(samples)
                 results[rep_name, uniformify_val, rep] = x
-    return results, ga_tp, ga_fit, gp_tp, gp_fit
+    return results, ga_fit, gp_fit
 
 
-def plot_ga_gp_rw_results(results, ga_tp, gp_tp):
-    uniformify_vals = [0.1, 0.5, .75, 0.9, 1.0, 1.0/0.9, 1.0/.75, 2.0, 10.0]
+def plot_ga_gp_rw_results(results, mu_sigma_vals):
 
-
-    reps = 30
+    reps = 3 # 30
     for rep_name in "ga", "gp":
-
-        if rep_name == "ga":
-            mu_sigma_vals = [mu_sigma(uniformify(ga_tp, uniformify_val))
-                             for uniformify_val in uniformify_vals]
-        else:
-            mu_sigma_vals = [mu_sigma(uniformify(gp_tp, uniformify_val))
-                             for uniformify_val in uniformify_vals]
 
         mu = []
         err = []
@@ -697,11 +726,12 @@ def plot_ga_gp_rw_results(results, ga_tp, gp_tp):
         plt.figure(figsize=(5, 2.5))
         plt.errorbar(mu_sigma_vals, mu, yerr=err, lw=3)
         plt.title(rep_name.upper())
-        plt.xlabel(r"$\mu(\sigma(p))$")
+        plt.xlabel(r"$\mu(\sigma_r(p))$", fontsize=16)
         plt.ylabel("Exploration")
         plt.ylim(0, 1)
-        filename = "/Users/jmmcd/Dropbox/GPSteadyState/results/" + rep_name + "_uniformify_rw"
+        filename = dirname + rep_name + "_uniformify_rw"
         plt.savefig(filename + ".pdf")
+        plt.savefig(filename + ".eps")
 
 
 
@@ -723,4 +753,5 @@ if __name__ == "__main__":
     # estimate_MFPT_with_supernode(dirname)
     # analyse_random_walk(dirname)
     # test_random_walk()
-    MSTP_wrapper(dirname)
+    # MSTP_wrapper(dirname)
+    run_ga_hc_and_ga_gp_rw_experiments_EuroGP_2014(dirname)

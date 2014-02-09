@@ -531,20 +531,35 @@ def write_steady_state(dirname):
     offset = int(log(len(ss), 2)) + 1
     ax.set_xlim((-offset, len(ss)-1+offset))
     plt.ylabel("Log-probability")
-    ax.plot(ss, label="Stationary state", lw=2.5, color=(0, 0, 0))
-    ax.plot(cs, label="Normalised in-degree", lw=1.5, color=(0.6, 0.6, 0.6))
+    ax.plot(ss, label="Stationary state", lw=1.5, color=(0, 0, 0))
     ax.set_xticklabels([], [])
     if ("depth_1" in dirname) or ("ga_length" in dirname):
         plt.legend(loc=3)
     else:
         plt.legend(loc=1)
-    filename = dirname + "/steady_state.dat"
-    np.savetxt(filename, ss)
-    filename = dirname + "/in_degree.dat"
-    np.savetxt(filename, cs)
-    filename = dirname + "/steady_state"
+    # filename = dirname + "/steady_state.dat"
+    # np.savetxt(filename, ss)
+    # filename = dirname + "/in_degree.dat"
+    # np.savetxt(filename, cs)
+    filename = dirname + "/steady_state_alone"
     fig.savefig(filename + ".pdf")
-    fig.savefig(filename + ".png")
+    fig.savefig(filename + ".eps")
+
+    fig = plt.figure(figsize=(5.0, 2.5))
+    ax = fig.add_subplot(1, 1, 1)
+    ax.set_yscale('log')
+    offset = int(log(len(ss), 2)) + 1
+    ax.set_xlim((-offset, len(ss)-1+offset))
+    plt.ylabel("Log-probability")
+    ax.plot(cs, label="Normalised in-degree", lw=1.5, color=(0, 0, 0))
+    ax.set_xticklabels([], [])
+    if ("depth_1" in dirname) or ("ga_length" in dirname):
+        plt.legend(loc=3)
+    else:
+        plt.legend(loc=1)
+    filename = dirname + "/normalised_in_degree_alone"
+    fig.savefig(filename + ".pdf")
+    fig.savefig(filename + ".eps")
 
 def make_mds_images(dirname):
     """Make MDS images for multiple distance matrices. Each matrix
