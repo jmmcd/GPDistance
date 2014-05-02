@@ -202,17 +202,17 @@ def plot_ga_gp_rw_results(results, mu_sigma_vals, path_results):
         plt.errorbar(mu_sigma_vals, mu, yerr=err, lw=3)
         plt.title(rep_name.upper())
         plt.xlabel(r"$\mu(\sigma_r(p))$", fontsize=16)
-        plt.ylabel("Exploration")
+        plt.ylabel("Unique\nindividuals")
         plt.ylim(0, 1)
         filename = os.path.join(path_results, rep_name + "_uniformify_rw")
         plt.savefig(filename + ".pdf")
         plt.savefig(filename + ".eps")
 
 
-def main()
+def main():
 
-    path_PODI_gp = "/tmp/PODI/src/gp.py"
-    path_results = "/tmp/results/"
+    path_PODI_gp = "/Users/jmmcd/Documents/vc/PODI/src/gp.py"
+    path_results = "/Users/jmmcd/tmp/results/"
 
     # make results dir
     try:
@@ -233,7 +233,7 @@ def main()
     os.system(cmd)
     os.chdir(cwd)
 
-    generate all GP trees
+    # generate all GP trees
     write_gp_trees(path_results)
 
     # use PODI's GP-fitness code to evaluate fitness of all GP trees

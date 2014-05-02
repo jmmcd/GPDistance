@@ -13,7 +13,7 @@ from math import *
 import random
 import scipy.stats
 import scipy.stats.mstats
-from random_walks import set_self_transition_zero, map_infinity_to_large
+from random_walks import set_self_transition_zero, map_infinity_to_large, tsp_tours
 
 # MAXTICKS is 1000 in IndexLocator
 class MyLocator(mpl.ticker.IndexLocator):
@@ -45,7 +45,9 @@ def graph_distance_names(dirname):
 def syntactic_distance_names(dirname):
     if "ga_length" in dirname:
         return ["Hamming"]
-    else:
+    elif "tsp_length" in dirname:
+        return ["KendallTau"]
+    elif "depth" in dirname:
         return [
             # "NodeCount", "MinDepth", "MeanDepth", "MaxDepth",
             # "Symmetry", "MeanFanout", "DiscreteMetric",
@@ -55,18 +57,31 @@ def syntactic_distance_names(dirname):
             "NCD",
             "OVD",
             ]
+    else:
+        raise ValueError("Unexpected dirname " + dirname)
 
 def make_grid_plots(dirname, plot_names=None):
     if "depth" in dirname:
+        # Assume GP
         if "depth_6" not in dirname:
             ind_names = open(dirname + "/all_trees.dat").read().strip().split("\n")
             ind_names = map(lambda x: x.strip(), ind_names)
         else:
             ind_names = None
-    else:
+    elif "ga_length" in dirname:
         # Assume GA
         length = int(dirname.strip("/").split("_")[2])
         ind_names = [bin(i)[2:] for i in range(2**length)]
+    elif "tsp_length" in dirname:
+        # Assume TSP
+        length = int(dirname.strip("/").split("_")[2])
+        if length < 10:
+            # 1-digit indices: just concatenate
+            ind_names = map(lambda t: ''.join(str(ti) for ti in t),
+                            tsp_tours(length))
+        else:
+            # use original tuple-style string
+            ind_names = map(str, tsp_tours(length))
 
     if plot_names is None:
         syn_names = syntactic_distance_names(dirname)
@@ -571,8 +586,11 @@ def make_mds_images(dirname):
         # read in the trees
         filename = dirname + "/all_trees.dat"
         labels = open(filename).read().strip().split("\n")
-    else:
+    elif "ga_length" in dirname:
         names = ["CT", "SD_TP", "FE", "Hamming"]
+        labels = None
+    elif "tsp_length" in dirname:
+        names = ["CT", "SD_TP", "FE", "KendallTau"]
         labels = None
     for name in names:
         m = np.genfromtxt(dirname + "/" + name + ".dat")
@@ -582,17 +600,28 @@ def make_mds_image(m, filename, labels=None):
     """Given a matrix of distances, project into 2D space using
     multi-dimensional scaling and produce an image."""
 
-    # Construct MDS object with various defaults including 2d
-    mds = MDS(dissimilarity="precomputed")
-    # Fit
-    try:
-        f = mds.fit(m)
-    except ValueError:
-        print("Can't run MDS for " + filename + " because it contains infinities.")
-        return
+    mds_data_filename = filename + ".dat"
 
-    # Get the embedding in 2d space
-    p = f.embedding_
+    try:
+        # if we've previously computed, load it
+        p = np.genfromtxt(mds_data_filename)
+    except:
+        # else, compute it now (and save)
+        
+        # Construct MDS object with various defaults including 2d
+        mds = MDS(dissimilarity="precomputed")
+        # Fit
+        try:
+            f = mds.fit(m)
+        except ValueError:
+            print("Can't run MDS for " + filename + " because it contains infinities.")
+            return
+
+        # Get the embedding in 2d space
+        p = f.embedding_
+
+        # save
+        np.savetxt(mds_data_filename, p)
 
     # Make an image
     plt.figure(figsize=(5, 5))
@@ -604,6 +633,8 @@ def make_mds_image(m, filename, labels=None):
     # marker='^',
     # c=[random.random() for i in range(len(p[:,0]))],
     # cmap=cm.autumn)
+    #
+    # also try mpl._cm.cubehelix(), see eg http://www.reddit.com/r/Python/comments/2376qw/i_wasnt_happy_with_the_colormaps_available_in/
 
     if labels != None:
         print filename

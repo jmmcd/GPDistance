@@ -161,7 +161,7 @@ def make_absorbing(tm, dest):
 
 def MSTP_wrapper(dirname):
     x = np.genfromtxt(dirname + "/TP.dat")
-    for i in [100]:
+    for i in [10, 100]:
         mstp = MSTP_max_n_steps(x, i)
         dmstp = -np.log(mstp)
         np.savetxt(dirname + "/D_MSTP_" + str(i) + ".dat", dmstp)
@@ -381,6 +381,12 @@ def read_and_get_dtp_mfpt_sp_steps(dirname):
     outfilename = dirname + "/STEPS.dat"
     np.savetxt(outfilename, p)
 
+
+
+############################################################
+# GA (bitstring) stuff
+############################################################
+
 def hamming_distance(x, y):
     return np.sum(x != y)
 
@@ -412,12 +418,18 @@ def onemax_fitvals(length):
             itertools.product(*[(0, 1) for x in range(length)])]
 
 def ga_tm_wrapper(dirname, pmut=None):
+    # dirname should be <dir>/ga_length_6, for example
     length = int(dirname.strip("/").split("_")[2])
     tm, hm = generate_ga_tm(length, pmut)
     outfilename = dirname + "/TP.dat"
     np.savetxt(outfilename, tm)
     outfilename = dirname + "/Hamming.dat"
     np.savetxt(outfilename, hm)
+
+
+##
+# End of GA (bitstring) stuff
+#########################################################    
 
 def simulate_random_walk(f, nsteps, selected, nsaves):
     """f is the transition function. nsteps is the number of steps.
@@ -566,192 +578,166 @@ def mu_sigma(t):
     sigma = np.std(t, 1)
     return np.mean(sigma), np.std(sigma)
 
-
-def run_ga_hc_and_ga_gp_rw_experiments_EuroGP_2014(dirname):
-    """Run the simple experiments required for the EuroGP 2014 paper
-    "Measuring mutation operators' exploration-exploitation behaviour
-    and long-term biases". This assumes that the GA length-10 and GP
-    depth-2 transition matrices have already been generated."""
-
-    # run, get results
-    ga_hc_results, mu_sigma_vals = ga_hc_experiment()
-    ga_gp_rw_results, ga_fit, gp_fit = ga_gp_rw_experiment(dirname)
-
-    # save results
-    results = (ga_hc_results, ga_gp_rw_results, ga_fit, gp_fit, mu_sigma_vals)
-    pickle.dump(results, file(dirname + "EuroGP_2014_results.pkl", "w"))
-
-    # OR (instead of running, if already run), restore from save
-    # results = pickle.load(file(dirname + "EuroGP_2014_results.pkl"))
-    # (ga_hc_results, ga_gp_rw_results, ga_fit, gp_fit, mu_sigma_vals) = results
-
-    # plot
-    plot_ga_hc_results(ga_hc_results, mu_sigma_vals, dirname)
-    plot_ga_gp_rw_results(ga_gp_rw_results, mu_sigma_vals)
+def gini_coeff(x):
+    """A measure of inequality in a distribution. From
+    http://www.ellipsix.net/blog/2012/11/the-gini-coefficient-for-distribution-inequality.html"""
+    # requires all values in x to be zero or positive numbers,
+    # otherwise results are undefined
+    n = len(x)
+    s = x.sum()
+    r = np.argsort(np.argsort(-x)) # calculates zero-based ranks
+    return 1 - (2.0 * (r*x).sum() + s)/(n*s)
 
 
-def ga_hc_experiment():
-    """Run some hill-climbs on variations of a GA space. Report
-    performance."""
-    uniformify_vals = [0.1, 0.5, .75, 0.9, 1.0, 1.0/0.9, 1.0/.75, 2.0, 10.0]
-    noise_vals = [0, 1, 10, 100, 1000]
-    results = OrderedDict()
+###################################################################
+# TSP stuff
+###################################################################
 
-    ga_length = 10
-    ga_tp, _ = generate_ga_tm(ga_length, pmut=1.0/ga_length)
-    ga_fitvals = onemax_fitvals(ga_length)
+def two_opt(p):
+    """2-opt means choosing any two non-contiguous edges ab and cd,
+    chopping them, and then reconnecting (such that the result is
+    still a complete tour). There are actually two ways of doing it --
+    one is the identity, and one gives a new tour."""
+    n = len(p)
+    i = random.randint(0, n)
+    j = None
+    while j == None or abs(i - j) <= 1 or abs(i - j) == n:
+        j = random.randint(0, n)
+    i, j = min(i, j), max(i, j)
+    sol = p[:i+1] + p[j:i:-1] + p[j+1:]
+    return canonicalise(sol)
 
-    mu_sigma_vals = [mu_sigma(uniformify(ga_tp, uniformify_val))
-                     for uniformify_val in uniformify_vals]
+def three_opt(p, broad=False):
+    """In the broad sense, 3-opt means choosing any three edges ab, cd
+    and ef and chopping them, and then reconnecting (such that the
+    result is still a complete tour). There are eight ways of doing
+    it. One is the identity, 3 are 2-opt moves (because either ab, cd,
+    or ef is reconnected), and 4 are 3-opt moves (in the narrower
+    sense)."""
+    n = len(p)
+    # choose 3 unique edges defined by their first node
+    a, c, e = random.sample(range(n+1), 3)
+    # without loss of generality, sort
+    a, c, e = sorted([a, c, e])
+    b, d, f = a+1, c+1, e+1
 
-    reps = 3 # 30
-    steps = 50
-    for rep_name, tp, fitvals in [["ga", ga_tp, ga_fitvals]]:
+    if broad == True:
+        which = random.randint(0, 7) # allow any of the 8
+    else:
+        which = random.choice([3, 4, 5, 6]) # allow only strict 3-opt
+        
+    # in the following slices, the nodes abcdef are referred to by
+    # name. x:y:-1 means step backwards. anything like c+1 or d-1
+    # refers to c or d, but to include the item itself, we use the +1
+    # or -1 in the slice
+    if which == 0:
+        sol = p[:a+1] + p[b:c+1]    + p[d:e+1]    + p[f:] # identity
+    elif which == 1:
+        sol = p[:a+1] + p[b:c+1]    + p[e:d-1:-1] + p[f:] # 2-opt
+    elif which == 2:
+        sol = p[:a+1] + p[c:b-1:-1] + p[d:e+1]    + p[f:] # 2-opt
+    elif which == 3:
+        sol = p[:a+1] + p[c:b-1:-1] + p[e:d-1:-1] + p[f:] # 3-opt
+    elif which == 4:
+        sol = p[:a+1] + p[d:e+1]    + p[b:c+1]    + p[f:] # 3-opt
+    elif which == 5:
+        sol = p[:a+1] + p[d:e+1]    + p[c:b-1:-1] + p[f:] # 3-opt
+    elif which == 6:
+        sol = p[:a+1] + p[e:d-1:-1] + p[b:c+1]    + p[f:] # 3-opt
+    elif which == 7:
+        sol = p[:a+1] + p[e:d-1:-1] + p[c:b-1:-1] + p[f:] # 2-opt
+        
+    return canonicalise(sol)
 
-        for noise_val in noise_vals:
-
-            tmp_fit = permute_vals(fitvals, noise_val)
-
-            for uniformify_val in uniformify_vals:
-                for rep in range(reps):
-                    tp_tmp = uniformify(tp, uniformify_val)
-                    samples, fit_samples, best = hillclimb(tp_tmp, tmp_fit,
-                                                           steps, rw=False)
-                    x = best
-                    results[rep_name, uniformify_val, noise_val, rep] = x
-    return results, mu_sigma_vals
-
-def plot_ga_hc_results(results, mu_sigma_vals, dirname):
-    """Plot the results of the GA HC experiments above."""
-    uniformify_vals = [0.1, 0.5, .75, 0.9, 1.0, 1.0/0.9, 1.0/.75, 2.0, 10.0]
-    noise_vals = [0, 1, 10, 100, 1000]
-
-    reps = 3 # 30
-    for rep_name in ["ga"]:
-        for noise_val in noise_vals:
-            mu = []
-            err = []
-
-            for uniformify_val in uniformify_vals:
-                x = [results[rep_name, uniformify_val, noise_val, rep]
-                     for rep in range(reps)]
-                mu.append(np.mean(x))
-                err.append(np.std(x))
-
-            plt.figure(figsize=(5, 2.5))
-            plt.errorbar(mu_sigma_vals, mu, yerr=err, lw=3)
-            plt.title(rep_name.upper() + r" OneMax with noise %d" % noise_val)
-            plt.xlabel(r"$\mu(\sigma_r(p))$", fontsize=16)
-            plt.ylabel("Fitness")
-            plt.ylim(0, 10)
-            filename = dirname + rep_name + "_noise_%d_hc" % noise_val
-            plt.savefig(filename + ".pdf")
-            plt.savefig(filename + ".eps")
-
-def ga_gp_rw_experiment(dirname):
-    uniformify_vals = [0.1, 0.5, .75, 0.9, 1.0, 1.0/0.9, 1.0/.75, 2.0, 10.0]
-    results = OrderedDict()
-
-    ga_length = 10
-    gp_depth = 2
-
-    # ga_tp, _ = generate_ga_tm(ga_length, pmut=1.0/ga_length)
-    ga_tp = np.genfromtxt(dirname + "/ga_length_" + str(ga_length) + "/TP.dat")
-    ga_fit = onemax_fitvals(ga_length)
-
-    gp_tp = np.genfromtxt(dirname + "/depth_" + str(gp_depth) + "/TP.dat")
-    import generate_trees
-    gp_trees = generate_trees.trees_of_depth_LE(2,
-                                                ("x0", "x1"),
-                                                OrderedDict([("*", 2), ("+", 2),
-                                                             ("-", 2), ("AQ", 2)]),
-                                                as_string=False)
-    try:
-        import fitness
-    except:
-        print "Download fitness.py from https://github.com/jmmcd/PODI/blob/master/src/fitness.py"
-        print "FIXME are gp.py and others also needed?"
-        sys.exit(0)
-
-    srff = fitness.benchmarks("pagie-2d")
-    gp_fit = [1.0 / srff.get_semantics(gp.make_fn(gp_tree[0]))[0]
-              for gp_tree in gp_trees]
-
-    # Do the "probability of encounter" experiment first
-    reps = 3 # 100
-    steps = 50
-
-    inds = 0, len(gp_fit)-1
-    hc_encounters = [0.0, 0.0]
-    rw_encounters = [0.0, 0.0]
-    for rep_name, tp, fitvals in [["gp", gp_tp, gp_fit]]:
-        for rep in range(reps):
-            samples, fit_samples, best = hillclimb(gp_tp, fitvals, steps, rw=False)
-            for i in range(2):
-                if inds[i] in samples:
-                    hc_encounters[i] += 1.0 / reps
-            samples, fit_samples, best = hillclimb(gp_tp, fitvals, steps, rw=True)
-            for i in range(2):
-                if inds[i] in samples:
-                    rw_encounters[i] += 1.0 / reps
-    print "hc_encounters", hc_encounters
-    print "rw_encounters", rw_encounters
-
-    # now the GA v GP hillclimb experiments
-    reps = 3 # 30
-    for rep_name, tp, fitvals in [["ga", ga_tp, ga_fit],
-                                  ["gp", gp_tp, gp_fit]]:
-        for uniformify_val in uniformify_vals:
-            for rep in range(reps):
-                tp_tmp = uniformify(tp, uniformify_val)
-                samples, fit_samples, best = hillclimb(tp_tmp, fitvals, steps, rw=True)
-                x = float(len(set(samples))) / len(samples)
-                results[rep_name, uniformify_val, rep] = x
-    return results, ga_fit, gp_fit
+def canonicalise(p):
+    """In any TSP, 01234 is equivalent to 23410. We canonicalise on
+    the former. In a symmetric TSP, 01234 is equivalent to 04321. We
+    canonicalise on the former. The general recipe is: p[0] is 0, and
+    p[1] is the smaller of p[1]'s neighbours (so p[-1] is the
+    larger)."""
+    assert p[0] == 0
+    if p[1] > p[-1]:
+        p[1:] = p[-1:0:-1]
+    return p
 
 
-def plot_ga_gp_rw_results(results, mu_sigma_vals):
+def tsp_tours(n):
+    """Generate all tours of length n. A tour is a permutation. But we
+    canonicalise as above."""
+    for p in itertools.permutations(range(n)):
+        if p[0] != 0: continue
+        if p[1] > p[-1]: continue
+        yield p
 
-    reps = 3 # 30
-    for rep_name in "ga", "gp":
+def sample_transitions(n, opt=2, nsamples=10000):
+    length = len(list(tsp_tours(n)))
+    tm = np.zeros((length, length))
+    delta = 1.0 / nsamples
 
-        mu = []
-        err = []
-        for uniformify_val in uniformify_vals:
-            x = [results[rep_name, uniformify_val, rep]
-                 for rep in range(reps)]
-            mu.append(np.mean(x))
-            err.append(np.std(x))
+    if opt == 3:
+        move = three_opt
+    else:
+        move = two_opt
+    
+    tours_to_ints = {}
+    for i, tour in enumerate(tsp_tours(n)):
+        tours_to_ints[tour] = i
 
-        plt.figure(figsize=(5, 2.5))
-        plt.errorbar(mu_sigma_vals, mu, yerr=err, lw=3)
-        plt.title(rep_name.upper())
-        plt.xlabel(r"$\mu(\sigma_r(p))$", fontsize=16)
-        plt.ylabel("Exploration")
-        plt.ylim(0, 1)
-        filename = dirname + rep_name + "_uniformify_rw"
-        plt.savefig(filename + ".pdf")
-        plt.savefig(filename + ".eps")
+    for i, tour in enumerate(tsp_tours(n)):
+        for j in range(nsamples):
+            t = move(list(tour))
+            tm[i][tours_to_ints[tuple(t)]] += delta
+    return tm
 
+def kendall_tau_permutation_distance(t1, t2):
+    corr, p = scipy.stats.kendalltau(t1, t2)
+    return 1.0 - corr
 
+def kendall_tau_permutation_distances(n):
+    m = len(list(tsp_tours(n)))
+    kt = np.zeros((m, m))
+    for i, ti in enumerate(tsp_tours(n)):
+        for j, tj in enumerate(tsp_tours(n)):
+            kt[i][j] = kendall_tau_permutation_distance(ti, tj)
+    return kt
+
+def tsp_tm_wrapper(dirname, opt=2):
+    # dirname should be <dir>/tsp_length_6_2_opt, for example
+    length = int(dirname.strip("/").split("_")[2])
+    tm = sample_transitions(length, opt)
+    outfilename = dirname + "/TP.dat"
+    np.savetxt(outfilename, tm)
+    kt = kendall_tau_permutation_distances(length)
+    outfilename = dirname + "/KendallTau.dat"
+    np.savetxt(outfilename, kt)
+
+#
+# end of TSP stuff
+#######################################################
 
 if __name__ == "__main__":
     dirname = sys.argv[1]
 
-    # if "depth" in dirname:
-    #     # Matrices have already been generated by Java code.
-    #     pass
-    # elif "ga" in dirname:
-    #     if "per_ind" in dirname:
-    #         ga_tm_wrapper(dirname)
-    #     else:
-    #         ga_tm_wrapper(dirname, 0.1)
-    # elif "land_of_oz" in dirname:
-    #     generate_oz_tm_mfpte(dirname)
-    # read_and_get_dtp_mfpt_sp_steps(dirname)
-    # write_symmetric_remoteness(dirname)
+    if "depth" in dirname:
+        # Matrices have already been generated by Java code.
+        pass
+    elif "ga" in dirname:
+        if "per_ind" in dirname:
+            ga_tm_wrapper(dirname)
+        else:
+            ga_tm_wrapper(dirname, 0.1)
+    elif "land_of_oz" in dirname:
+        generate_oz_tm_mfpte(dirname)
+    elif "tsp" in dirname:
+        if "2_opt" in dirname:
+            tsp_tm_wrapper(dirname, opt=2)
+        elif "3_opt" in dirname:
+            tsp_tm_wrapper(dirname, opt=3)
+        else:
+            raise ValueError("Unexpected dirname " + dirname)
+    read_and_get_dtp_mfpt_sp_steps(dirname)
+    write_symmetric_remoteness(dirname)
     # estimate_MFPT_with_supernode(dirname)
     # analyse_random_walk(dirname)
     # test_random_walk()
-    # MSTP_wrapper(dirname)
-    run_ga_hc_and_ga_gp_rw_experiments_EuroGP_2014(dirname)
+    MSTP_wrapper(dirname)

@@ -14,10 +14,10 @@ mh:
 	java -Xmx512m -cp ${cp} GP.Sample metro
 
 completeMatricesDepth1:
-	java -cp ${cp} GP.Sample completeMatrices 1
+	java -Xmx512m -cp ${cp} GP.Sample completeMatrices 1
 
 completeMatricesDepth2:
-	java -cp ${cp} GP.Sample completeMatrices 2
+	java -Xmx512m -cp ${cp} GP.Sample completeMatrices 2
 
 testdistances:
 	java -cp ${cp} TreeDistance.OverlapDistance
