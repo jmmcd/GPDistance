@@ -95,7 +95,7 @@ def make_grid_plots(dirname, plot_names=None):
         make_grid(w, False, dirname + "/" + plot_name)
     print ind_names # better to print them in a list somewhere than in the graph
 
-def make_grid(w, names, filename):
+def make_grid(w, names, filename, colour_map=None, bar=True):
     # we dont rescale the data. matshow() internally scales the data
     # so that the smallest numbers go to black and largest to white.
 
@@ -123,8 +123,10 @@ def make_grid(w, names, filename):
     # gist_earth, copper, ocean, some others, or a custom one for
     # nicer images (not for publication, maybe).
     # im = ax.matshow(w, cmap=cm.gray, interpolation="none")
-    im = ax.matshow(w, cmap=cm.gray, interpolation="nearest")
-    fig.colorbar(im, shrink=0.775)
+    if colour_map is None: colour_map = cm.gray
+    im = ax.matshow(w, cmap=colour_map, interpolation="nearest")
+    if bar:
+        fig.colorbar(im, shrink=0.775)
 
     if names:
         # Turn labels on
@@ -139,11 +141,13 @@ def make_grid(w, names, filename):
 
     ax.tick_params(length=0, pad=3.0)
     fig.savefig(filename + ".pdf", dpi=100)
+    fig.savefig(filename + ".eps", dpi=100)
     fig.savefig(filename + ".png", dpi=100)
-
+    plt.close(fig)
+    
     # restore old error settings
     np.seterr(**old)
-
+    
 
 def metric_distortion(a, b):
     """Calculate the metric distortion between two metrics on the same
@@ -401,7 +405,9 @@ def make_scatter_plot(dirname, d, name1, tex_name1, name2, tex_name2):
     ax.set_xlabel(tex_name1)
     ax.set_ylabel(tex_name2)
     fig.savefig(filename + ".pdf")
+    fig.savefig(filename + ".eps")
     fig.savefig(filename + ".png")
+    plt.close(fig)
 
 def make_histograms(dirname):
     syn_names = syntactic_distance_names(dirname)
@@ -424,6 +430,9 @@ def make_histogram(dirname, d, name, tex_name):
     ax.set_yticks([])
     # ax.legend()
     fig.savefig(dirname + "/histogram_" + name + ".pdf")
+    fig.savefig(dirname + "/histogram_" + name + ".eps")
+    fig.savefig(dirname + "/histogram_" + name + ".png")
+    plt.close(fig)
 
 def compare_TP_estimate_v_exact(dirname):
 
@@ -559,6 +568,7 @@ def write_steady_state(dirname):
     filename = dirname + "/steady_state_alone"
     fig.savefig(filename + ".pdf")
     fig.savefig(filename + ".eps")
+    plt.close(fig)
 
     fig = plt.figure(figsize=(5.0, 2.5))
     ax = fig.add_subplot(1, 1, 1)
@@ -575,6 +585,7 @@ def write_steady_state(dirname):
     filename = dirname + "/normalised_in_degree_alone"
     fig.savefig(filename + ".pdf")
     fig.savefig(filename + ".eps")
+    plt.close(fig)
 
 def make_mds_images(dirname):
     """Make MDS images for multiple distance matrices. Each matrix
@@ -585,7 +596,8 @@ def make_mds_images(dirname):
         names = ["CT", "SD_TP", "FE", "TED", "TAD0", "TAD2", "OVD", "FVD"]
         # read in the trees
         filename = dirname + "/all_trees.dat"
-        labels = open(filename).read().strip().split("\n")
+        # labels = open(filename).read().strip().split("\n")
+        labels = None
     elif "ga_length" in dirname:
         names = ["CT", "SD_TP", "FE", "Hamming"]
         labels = None
@@ -596,7 +608,7 @@ def make_mds_images(dirname):
         m = np.genfromtxt(dirname + "/" + name + ".dat")
         make_mds_image(m, dirname + "/" + name + "_MDS", labels)
 
-def make_mds_image(m, filename, labels=None):
+def make_mds_image(m, filename, labels=None, colour=None):
     """Given a matrix of distances, project into 2D space using
     multi-dimensional scaling and produce an image."""
 
@@ -624,17 +636,11 @@ def make_mds_image(m, filename, labels=None):
         np.savetxt(mds_data_filename, p)
 
     # Make an image
-    plt.figure(figsize=(5, 5))
+    fig, ax = plt.subplots(figsize=(5, 5))
     # x- and y-coordinates
-    plt.axes().set_aspect('equal')
-    plt.scatter(p[:,0], p[:,1],
-                marker='.', c='b')
-    # For triangles and random colours use this:
-    # marker='^',
-    # c=[random.random() for i in range(len(p[:,0]))],
-    # cmap=cm.autumn)
-    #
-    # also try mpl._cm.cubehelix(), see eg http://www.reddit.com/r/Python/comments/2376qw/i_wasnt_happy_with_the_colormaps_available_in/
+    ax.set_aspect('equal')
+
+    ax.scatter(p[:,0], p[:,1], edgecolors='none')
 
     if labels != None:
         print filename
@@ -649,14 +655,57 @@ def make_mds_image(m, filename, labels=None):
             # plt.text(p[i,0], p[i,1], labels[i], style='italic',
             #         bbox={'facecolor':'red', 'alpha':0.5, 'pad':10})
 
-    plt.savefig(filename + ".png")
-    plt.savefig(filename + ".pdf")
+    fig.savefig(filename + ".pdf")
+    fig.savefig(filename + ".eps")
+    fig.savefig(filename + ".png")
+    plt.close(fig)
 
     # Could use custom marker types and colours to get an interesting
     # diagram?
     # http://matplotlib.org/api/path_api.html#matplotlib.path.Path
     # (pass marker=Path() from above), and then use random colours?
 
+def make_UCD_research_images():
+    dirname = "../../results/depth_2/"
+    tree_names = open("../../results/depth_2/all_trees.dat").read().strip().split("\n")
+    # names = ["TED", "OVD", "CT", "FVD", "FE", "SD_TP", "TAD0", "TAD2"]
+    names = ["TED", "SD_TP", "OVD", "FE"]
+
+    # choose a colour scheme
+    #colours = XXX
+    # colour_maps = [cm.autumn, cm.summer, cm.winter, cm.ocean, cm.gist_earth, cm.bone, cm.copper, cm.RdGy]
+    colour_maps = [cm.autumn, cm.summer, cm.copper, cm.ocean]
+
+    def colour_val(tree_name):
+        return max(1.0, random.random() * 0.25 + len(tree_name) / 19.0)
+    def marker_size():
+        return 30 + random.random() * 20
+        
+    for name, colour_map in zip(names, colour_maps):
+        # do mds
+        mds_data_filename = dirname + "/" + name + "_MDS.dat"
+        mds_output_filename = dirname + "/UCD_research_images/" + name + "_MDS"
+        p = np.genfromtxt(mds_data_filename)
+        # Make an image
+        fig, ax = plt.subplots(figsize=(5, 5))
+        # x- and y-coordinates
+        ax.set_aspect('equal')
+        colour_vals = [colour_val(tree_name) for tree_name in tree_names]
+        marker_sizes = [marker_size() for tree_name in tree_names]
+        marker = '^'
+        ax.scatter(p[:,0], p[:,1], s=marker_sizes,
+                   marker=marker, c=colour_vals, cmap=colour_map, alpha=0.5, edgecolors='none')
+        plt.axis('off')
+        fig.savefig(mds_output_filename + ".png", bbox_inches='tight')
+        fig.savefig(mds_output_filename + ".pdf", bbox_inches='tight')
+
+
+        # do grid
+        grid_data_filename = dirname + "/" + name + ".dat"
+        grid_output_filename = dirname + "/UCD_research_images/" + name + "_grid"
+        p = np.genfromtxt(grid_data_filename)
+        make_grid(p, None, grid_output_filename, colour_map, bar=False)
+    
 if __name__ == "__main__":
     cmd = sys.argv[1]
     dirname = sys.argv[2]
@@ -680,3 +729,5 @@ if __name__ == "__main__":
         make_scatter_plots(dirname)
     elif cmd == "makeHistograms":
         make_histograms(dirname)
+    elif cmd == "makeUCDResearchImages":
+        make_UCD_research_images()
