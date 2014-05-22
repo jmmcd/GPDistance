@@ -587,6 +587,9 @@ def write_steady_state(dirname):
     fig.savefig(filename + ".eps")
     plt.close(fig)
 
+    s = ("Detailed balance check: " + str(random_walks.detailed_balance(tp, ss)))
+    open(dirname + "/detailed_balance.tex", "w").write(s)
+
 def make_mds_images(dirname):
     """Make MDS images for multiple distance matrices. Each matrix
     must be symmetric. Must not contain any infinities, which prevents

@@ -588,11 +588,12 @@ def gini_coeff(x):
     r = np.argsort(np.argsort(-x)) # calculates zero-based ranks
     return 1 - (2.0 * (r*x).sum() + s)/(n*s)
 
-def detailed_balance(tp):
+def detailed_balance(tp, s=None):
     """Calculate whether a given chain has the detailed balance
     condition, that is given a transition matrix tp, with stationary
     state s, that s_i tp_ij = sj tp_ji."""
-    s = get_steady_state(tp)
+    if s is None:
+        s = get_steady_state(tp)
     # define matrix b by b_ij = s_i tp_ij, and then check if it's
     # symmetric
     b = tp * s.reshape((len(s), 1))
