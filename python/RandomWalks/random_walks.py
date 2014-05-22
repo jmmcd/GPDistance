@@ -594,10 +594,10 @@ def detailed_balance(tp, s=None):
     state s, that s_i tp_ij = sj tp_ji."""
     if s is None:
         s = get_steady_state(tp)
-    # define matrix b by b_ij = s_i tp_ij, and then check if it's
-    # symmetric
-    b = tp * s.reshape((len(s), 1))
-    return is_symmetric(b)
+    # define matrix f (f for flux) by f_ij = s_i tp_ij, and then check
+    # if it's symmetric
+    f = tp * s.reshape((len(s), 1))
+    return is_symmetric(f)
     
 ###################################################################
 # TSP stuff
