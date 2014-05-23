@@ -115,7 +115,7 @@ def make_grid(w, names, filename, colour_map=None, bar=True):
     # times the largest finite value.
     map_infinity_to_large(w)
 
-    figsize = (10, 10)
+    figsize = (30, 30)
     fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(1, 1, 1)
     # ax.set_frame_on(False)
@@ -140,9 +140,9 @@ def make_grid(w, names, filename, colour_map=None, bar=True):
         ax.set_yticklabels([], [])
 
     ax.tick_params(length=0, pad=3.0)
-    fig.savefig(filename + ".pdf", dpi=100)
-    fig.savefig(filename + ".eps", dpi=100)
-    fig.savefig(filename + ".png", dpi=100)
+    fig.savefig(filename + ".pdf", dpi=600)
+    # fig.savefig(filename + ".eps", dpi=300)
+    fig.savefig(filename + ".png", dpi=600)
     plt.close(fig)
     
     # restore old error settings
@@ -671,13 +671,17 @@ def make_mds_image(m, filename, labels=None, colour=None):
 def make_UCD_research_images():
     dirname = "../../results/depth_2/"
     tree_names = open("../../results/depth_2/all_trees.dat").read().strip().split("\n")
-    # names = ["TED", "OVD", "CT", "FVD", "FE", "SD_TP", "TAD0", "TAD2"]
-    names = ["TED", "SD_TP", "OVD", "FE"]
 
+
+    # names = ["TED", "OVD", "CT", "FVD", "FE", "SD_TP", "TAD0", "TAD2"]
+    names = ["TED", "SD_TP"]
+    names = []
+    # names = ["TED"]
     # choose a colour scheme
     #colours = XXX
     # colour_maps = [cm.autumn, cm.summer, cm.winter, cm.ocean, cm.gist_earth, cm.bone, cm.copper, cm.RdGy]
     colour_maps = [cm.autumn, cm.summer, cm.copper, cm.ocean]
+    colour_maps = [cm.autumn, cm.summer]
 
     def colour_val(tree_name):
         return max(1.0, random.random() * 0.25 + len(tree_name) / 19.0)
@@ -703,6 +707,20 @@ def make_UCD_research_images():
         fig.savefig(mds_output_filename + ".pdf", bbox_inches='tight')
 
 
+    # names = ["TED", "OVD", "CT", "FVD", "FE", "SD_TP", "TAD0", "TAD2"]
+    names = ["TED", "SD_TP", "OVD", "FE"]
+    names = ["TAD1"]
+    # choose a colour scheme
+    #colours = XXX
+    # colour_maps = [cm.autumn, cm.summer, cm.winter, cm.ocean, cm.gist_earth, cm.bone, cm.copper, cm.RdGy]
+    colour_maps = [cm.autumn, cm.summer, cm.copper, cm.ocean]
+    oceancmap = cm.get_cmap("ocean", 5) # generate an ocean map with 5 values 
+    ocean_vals = oceancmap(np.arange(5)) # extract those values as an array 
+    ocean_vals = ocean_vals[1:] # discard the green bits at the bottom of the ocean
+    newcmap = mpl.colors.LinearSegmentedColormap.from_list("newocean", ocean_vals) 
+    colour_maps = [newcmap]
+    colour_maps = [cm.copper]
+    for name, colour_map in zip(names, colour_maps):
         # do grid
         grid_data_filename = dirname + "/" + name + ".dat"
         grid_output_filename = dirname + "/UCD_research_images/" + name + "_grid"
