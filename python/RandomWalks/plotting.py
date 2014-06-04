@@ -92,6 +92,7 @@ def make_grid_plots(dirname, plot_names=None):
         w = np.genfromtxt(dirname + "/" + plot_name + ".dat")
         if "depth_6" not in dirname:
             assert(len(w) == len(ind_names))
+        print plot_name
         make_grid(w, False, dirname + "/" + plot_name)
     print ind_names # better to print them in a list somewhere than in the graph
 
@@ -115,16 +116,16 @@ def make_grid(w, names, filename, colour_map=None, bar=True):
     # times the largest finite value.
     map_infinity_to_large(w)
 
-    figsize = (30, 30)
+    side = 5 * log(len(w))
+    figsize = (side, side)
     fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(1, 1, 1)
-    # ax.set_frame_on(False)
     # consider other colour maps: cm.gray_r for reversed, autumn, hot,
     # gist_earth, copper, ocean, some others, or a custom one for
     # nicer images (not for publication, maybe).
     # im = ax.matshow(w, cmap=cm.gray, interpolation="none")
     if colour_map is None: colour_map = cm.gray
-    im = ax.matshow(w, cmap=colour_map, interpolation="nearest")
+    im = ax.matshow(w, cmap=colour_map, interpolation="none")
     if bar:
         fig.colorbar(im, shrink=0.775)
 
@@ -140,9 +141,9 @@ def make_grid(w, names, filename, colour_map=None, bar=True):
         ax.set_yticklabels([], [])
 
     ax.tick_params(length=0, pad=3.0)
-    fig.savefig(filename + ".pdf", dpi=600)
-    # fig.savefig(filename + ".eps", dpi=300)
-    fig.savefig(filename + ".png", dpi=600)
+    fig.savefig(filename + ".pdf", dpi=300, bbox_inches='tight')
+    fig.savefig(filename + ".eps", dpi=300, bbox_inches='tight')
+    fig.savefig(filename + ".png", dpi=300, bbox_inches='tight')
     plt.close(fig)
     
     # restore old error settings
@@ -597,6 +598,7 @@ def make_mds_images(dirname):
 
     if "depth" in dirname:
         names = ["CT", "SD_TP", "FE", "TED", "TAD0", "TAD2", "OVD", "FVD"]
+        names = ["CT_amp", "RSP", "TAD1"]
         # read in the trees
         filename = dirname + "/all_trees.dat"
         # labels = open(filename).read().strip().split("\n")
@@ -628,8 +630,8 @@ def make_mds_image(m, filename, labels=None, colour=None):
         # Fit
         try:
             f = mds.fit(m)
-        except ValueError:
-            print("Can't run MDS for " + filename + " because it contains infinities.")
+        except ValueError as e:
+            print("Can't run MDS for " + filename + ": " + e)
             return
 
         # Get the embedding in 2d space
@@ -672,54 +674,56 @@ def make_UCD_research_images():
     dirname = "../../results/depth_2/"
     tree_names = open("../../results/depth_2/all_trees.dat").read().strip().split("\n")
 
+    # make a new ocean-derived colourmap
+    oceancmap = cm.get_cmap("ocean", 5) # generate an ocean map with 5 values 
+    ocean_vals = oceancmap(np.arange(5)) # extract those values as an array 
+    ocean_vals = ocean_vals[1:] # discard the green bits at the bottom of the ocean
+    new_ocean = mpl.colors.LinearSegmentedColormap.from_list("newocean", ocean_vals) 
 
     # names = ["TED", "OVD", "CT", "FVD", "FE", "SD_TP", "TAD0", "TAD2"]
-    names = ["TED", "SD_TP"]
+    names = ["OVD", "FE", "SD_TP", "TED"]
     names = []
-    # names = ["TED"]
+    
     # choose a colour scheme
-    #colours = XXX
-    # colour_maps = [cm.autumn, cm.summer, cm.winter, cm.ocean, cm.gist_earth, cm.bone, cm.copper, cm.RdGy]
-    colour_maps = [cm.autumn, cm.summer, cm.copper, cm.ocean]
-    colour_maps = [cm.autumn, cm.summer]
+    colour_maps = [new_ocean, cm.summer, cm.autumn, cm.copper]
 
     def colour_val(tree_name):
         return max(1.0, random.random() * 0.25 + len(tree_name) / 19.0)
     def marker_size():
         return 30 + random.random() * 20
-        
+
     for name, colour_map in zip(names, colour_maps):
         # do mds
         mds_data_filename = dirname + "/" + name + "_MDS.dat"
         mds_output_filename = dirname + "/UCD_research_images/" + name + "_MDS"
         p = np.genfromtxt(mds_data_filename)
         # Make an image
-        fig, ax = plt.subplots(figsize=(5, 5))
+        fig, ax = plt.subplots(figsize=(5, 5), frameon=False)
+        ax.axis('off')
         # x- and y-coordinates
         ax.set_aspect('equal')
         colour_vals = [colour_val(tree_name) for tree_name in tree_names]
         marker_sizes = [marker_size() for tree_name in tree_names]
         marker = '^'
         ax.scatter(p[:,0], p[:,1], s=marker_sizes,
-                   marker=marker, c=colour_vals, cmap=colour_map, alpha=0.5, edgecolors='none')
-        plt.axis('off')
+                   marker=marker, c=colour_vals, cmap=colour_map,
+                   alpha=0.5, edgecolors='none')
+        
+        mnx, mxx = min(p[:,0]), max(p[:,0])
+        mny, mxy = min(p[:,1]), max(p[:,1])
+        rngx = (mxx - mnx)
+        rngy = (mxy - mny)
+        margin = 0.03
+        ax.set_xlim((mnx - margin * rngx, mxx + margin * rngx))
+        ax.set_ylim((mny - margin * rngy, mxy + margin * rngy))
+        #plt.axis('off')
+        
         fig.savefig(mds_output_filename + ".png", bbox_inches='tight')
         fig.savefig(mds_output_filename + ".pdf", bbox_inches='tight')
 
+    names = ["OVD", "FE", "SD_TP", "TED"]
+    colour_maps = [new_ocean, cm.summer, cm.YlOrRd, cm.copper]
 
-    # names = ["TED", "OVD", "CT", "FVD", "FE", "SD_TP", "TAD0", "TAD2"]
-    names = ["TED", "SD_TP", "OVD", "FE"]
-    names = ["TAD1"]
-    # choose a colour scheme
-    #colours = XXX
-    # colour_maps = [cm.autumn, cm.summer, cm.winter, cm.ocean, cm.gist_earth, cm.bone, cm.copper, cm.RdGy]
-    colour_maps = [cm.autumn, cm.summer, cm.copper, cm.ocean]
-    oceancmap = cm.get_cmap("ocean", 5) # generate an ocean map with 5 values 
-    ocean_vals = oceancmap(np.arange(5)) # extract those values as an array 
-    ocean_vals = ocean_vals[1:] # discard the green bits at the bottom of the ocean
-    newcmap = mpl.colors.LinearSegmentedColormap.from_list("newocean", ocean_vals) 
-    colour_maps = [newcmap]
-    colour_maps = [cm.copper]
     for name, colour_map in zip(names, colour_maps):
         # do grid
         grid_data_filename = dirname + "/" + name + ".dat"
