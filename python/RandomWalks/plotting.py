@@ -116,7 +116,7 @@ def make_grid(w, names, filename, colour_map=None, bar=True):
     # times the largest finite value.
     map_infinity_to_large(w)
 
-    side = 5 * log(len(w))
+    side = 8.0
     figsize = (side, side)
     fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(1, 1, 1)
@@ -125,7 +125,7 @@ def make_grid(w, names, filename, colour_map=None, bar=True):
     # nicer images (not for publication, maybe).
     # im = ax.matshow(w, cmap=cm.gray, interpolation="none")
     if colour_map is None: colour_map = cm.gray
-    im = ax.matshow(w, cmap=colour_map, interpolation="none")
+    im = ax.matshow(w, cmap=colour_map, interpolation="nearest")
     if bar:
         fig.colorbar(im, shrink=0.775)
 
