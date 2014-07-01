@@ -84,23 +84,29 @@ def shapes_of_depth_LE(n):
 def AQ(x, y):
     return x/sqrt(1.0+y*y)
 
-def semantics(t):
+def semantics(X, t):
+    """Calculate a vector of yhat values at points X given a tree t."""
     f = tree_to_fn(t)
+    return f(X)
+    
+def pagie_hogeweg_X():
     x = np.linspace(-5.0, 5.0, 26)
     X = np.meshgrid(x, x)
     X = np.array([X[0].ravel(), X[1].ravel()])
-    return X, f(X)
-    
+    return X
+
+def pagie_hogeweg_fn(X):
+    return 1.0 / (1.0 + X[0]**-4.0) + 1.0 / (1.0 + X[1]**-4.0)
+
 def fitness(t):
-    X, t_vals = semantics(t)
+    """Calculate fitness of a tree t on the Pagie/Hogeweg problem"""
+    X = pagie_hogeweg_X()
+    t_vals = semantics(X, t)
     target = target_fn(X)
     return np.sqrt(np.mean((target - t_vals)**2))
     
-def target_fn(X):
-    """Pagie and Hogeweg"""
-    return 1.0 / (1.0 + X[0]**-4.0) + 1.0 / (1.0 + X[1]**-4.0)
-    
 def tree_to_fn(t):
+    """Convert a tree t to a runnable function."""
     if type(t) == str:
         # it's either X[0] or similar or a const: just eval
         if t == "x" or t == "x0":
@@ -119,22 +125,26 @@ def tree_to_fn(t):
     return f
 
 def enumerate_semantics(n, vars, fns):
+    """For all trees of depth <= n with given alphabet, calculate
+    their semantics vector."""
     ntrees = count_trees_of_depth_LE(2, vars, fns)
     result = []
+    X = pagie_hogeweg_X()
     for t, d in trees_of_depth_LE(n, vars, fns, False):
-        result.append(semantics(t)[1])
+        result.append(semantics(X, t))
     result = np.array(result)
     return result
 
 def semantic_distances(n, vars, fns):
+    """For all tree of depth <= n with given alphabet, calculate the
+    semantic distances between pairs of trees."""
     semantics = enumerate_semantics(n, vars, fns)
     ntrees = semantics.shape[0]
-    print "ntrees", ntrees
     result = np.zeros((ntrees, ntrees))
     for i, t in enumerate(semantics):
-        print "len t", len(t)
         for j, s in enumerate(semantics):
             d = np.sqrt(np.mean((t - s)**2.0))
+            d = np.log(1.0 + d) # because semantic dists can be huge
             result[i, j] = d
     return result
     
