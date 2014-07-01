@@ -1,6 +1,6 @@
-#!/usr/bin/env python2.7
-# 2.7 because scipy doesn't import on other versions, on my imac
+#!/usr/bin/env python
 
+import pandas as pd
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -56,6 +56,7 @@ def syntactic_distance_names(dirname):
             "FVD",
             "NCD",
             "OVD",
+            "SEMD", # not syntactic of course, but handy to put it here
             ]
     else:
         raise ValueError("Unexpected dirname " + dirname)
@@ -266,7 +267,13 @@ def get_pearson_r(x, y):
     np.seterr(**old)
     return corr, p
 
-def make_correlation_tables(dirname, txt=""):
+def normalised_rmse(x, y):
+    """Normalise x and y to each have unit stddev, then just take a Euclidean distance."""
+    x = x / np.std(x)
+    y = y / np.std(y)
+    return np.sqrt(np.mean((x-y)**2.0))
+    
+def make_correlation_tables(dirname):
 
     syn_names = syntactic_distance_names(dirname)
     grph_names, grph_tex_names = graph_distance_names(dirname)
@@ -283,21 +290,30 @@ def make_correlation_tables(dirname, txt=""):
                 corr, p = get_kendall_tau(d[graph_distance], d[dist])
             elif corr_type == "pearsonr":
                 corr, p = get_pearson_r(d[graph_distance], d[dist])
+            elif corr_type == "euclidean":
+                # there is no p-value associated with this so use 1.0 as placeholder
+                corr, p = normalised_rmse(d[graph_distance], d[dist]), 1.0
             elif corr_type == "metric_distortion":
-                # there is no p-value associated with metric
-                # distortion so use 1.0
+                # there is no p-value associated with this so use 1.0 as placeholder
                 corr, p = metric_distortion_agreement(d[graph_distance], d[dist]), 1.0
             else:
                 print("Unknown correlation type " + corr_type)
-            if corr > 0.0 and p < 0.05:
-                sig = "*"
+            # Consider stat sig only with spearman, kendall, pearson, only
+            # with large depth (not looking at entire space)
+            if (corr_type in ["spearmanrho", "kendalltau", "pearsonr"] and
+                "depth_6" in dirname):
+                if corr > 0.0 and p < 0.05:
+                    sig = "*"
+                else:
+                    sig = " "
+                line += r" & {0:1.2f} \hfill {1} ".format(corr, sig)
             else:
-                sig = " "
-            line += r" & {0:1.2f} \hfill {1} ".format(corr, sig)
+                line += r" & {0:1.2f} ".format(corr)
         line += r"\\"
         f.write(line + "\n")
 
-    for corr_type in ["spearmanrho", "pearsonr", "kendalltau", "metric_distortion"]:
+    for corr_type in ["spearmanrho", "pearsonr", "kendalltau",
+                      "euclidean", "metric_distortion"]:
         if corr_type == "kendalltau" and len(d["D_TP"]) > 1000:
             print("Omitting Kendall tau because it is infeasible for large matrices")
             continue
@@ -305,7 +321,9 @@ def make_correlation_tables(dirname, txt=""):
         f = open(filename, "w")
 
         if len(grph_names) > 5:
-            f.write(r"""\begin{table*}
+            f.write(r"""\begin{sidewaystable}
+""")
+            f.write(r"""\small
 """)
         else:
             f.write(r"""\begin{table}
@@ -313,15 +331,27 @@ def make_correlation_tables(dirname, txt=""):
         f.write(r"""\centering
 \caption{Correlations among distance measures """)
         if corr_type == "spearmanrho":
-            f.write("using Spearman's rho: ")
+            f.write("using Spearman's $\rho$: ")
         elif corr_type == "pearsonr":
-            f.write("using Pearson's R: ")
+            f.write("using Pearson's $R$: ")
         elif corr_type == "kendalltau":
-            f.write("using Kendall's tau: ")
+            f.write("using Kendall's $\tau$: ")
         elif corr_type == "metric_distortion":
             f.write("using inverse metric distortion: ")
+        elif corr_type == "euclidean":
+            f.write("using standardised Euclidean distance: ")
 
-        f.write(txt)
+        if "depth_1" in dirname:
+            f.write("trees of maximum depth 1")
+        elif "depth_2" in dirname:
+            f.write("trees of maximum depth 2")
+        elif "depth_6" in dirname:
+            f.write("trees of maximum depth 6")
+        elif "length_4_per_ind" in dirname:
+            f.write("bitstrings of length 4 (per-individual mutation)")
+        elif "length_4" in dirname:
+            f.write("bitstrings of length 4 (per-gene mutation)")
+
         f.write(r"""\label{tab:correlationresults_"""
                 + os.path.basename(dirname)
                 + "_" + corr_type + "}}\n")
@@ -337,12 +367,13 @@ def make_correlation_tables(dirname, txt=""):
 \hline
 """)
         for syn in syn_names:
+            if syn == "SEMD": continue # hack -- we don't want SEMD for now
             do_line(syn, syn)
 
         f.write(r"""\end{tabular}
 """)
         if len(grph_names) > 5:
-            f.write(r"""\end{table*}
+            f.write(r"""\end{sidewaystable}
 """)
         else:
             f.write(r"""\end{table}
@@ -381,7 +412,10 @@ def load_data_and_reshape(dirname, names, remap_infinity=False):
 def make_scatter_plots(dirname):
     syn_names = syntactic_distance_names(dirname)
     grph_names, grph_tex_names = graph_distance_names(dirname)
-
+    syn_names = []
+    grph_names = ["MFPT", "MFPT_VLA"]
+    grph_tex_names = ["MFPT", "MFPTV"]
+    
     d = load_data_and_reshape(dirname, syn_names + grph_names)
 
     # while we have the data loaded in d, make scatter plots
@@ -389,27 +423,35 @@ def make_scatter_plots(dirname):
     # graph v graph first
     for name1, tex_name1 in zip(grph_names, grph_tex_names):
         for name2, tex_name2 in zip(grph_names, grph_tex_names):
-            if name1 < name2:
+            if name1 < name2 and name1 == "MFPT" and name2 == "MFPT_VLA": # temp hack
+                print "doing MFPT MFPTV"
                 # avoid plotting anything against itself, or plotting any pair twice
                 make_scatter_plot(dirname, d, name1, tex_name1, name2, tex_name2)
 
     # graph v syn
     for name1, tex_name1 in zip(syn_names, syn_names):
         for name2, tex_name2 in zip(grph_names, grph_tex_names):
+            continue
             make_scatter_plot(dirname, d, name1, tex_name1, name2, tex_name2)
 
 def make_scatter_plot(dirname, d, name1, tex_name1, name2, tex_name2):
     filename = dirname + "/scatter_" + name1 + "_" + name2
     fig = plt.figure(figsize=(5,5))
     ax = fig.add_subplot(1, 1, 1)
-    ax.scatter(d[name1], d[name2])
+    xy = deduplicate_rows(np.array([d[name1], d[name2]]).T)
+    x, y = xy.T[0], xy.T[1]
+    ax.scatter(x, y)
     ax.set_xlabel(tex_name1)
     ax.set_ylabel(tex_name2)
-    fig.savefig(filename + ".pdf")
-    fig.savefig(filename + ".eps")
-    fig.savefig(filename + ".png")
+    fig.savefig(filename + ".eps", bbox_inches='tight')
+    fig.savefig(filename + ".pdf", bbox_inches='tight')
+    fig.savefig(filename + ".png", bbox_inches='tight')
     plt.close(fig)
 
+def deduplicate_rows(a):
+    """From http://stackoverflow.com/questions/14089453/python-remove-duplicates-from-a-multi-dimensional-array"""
+    return pd.DataFrame(a).drop_duplicates().values
+    
 def make_histograms(dirname):
     syn_names = syntactic_distance_names(dirname)
     grph_names, grph_tex_names = graph_distance_names(dirname)
@@ -591,23 +633,26 @@ def write_steady_state(dirname):
     s = ("Detailed balance check: " + str(random_walks.detailed_balance(tp, ss)))
     open(dirname + "/detailed_balance.tex", "w").write(s)
 
-def make_mds_images(dirname):
+def make_mds_images(dirname, names=None):
     """Make MDS images for multiple distance matrices. Each matrix
     must be symmetric. Must not contain any infinities, which prevents
     SD_TP in a space like ga_length_4_per_ind."""
 
     if "depth" in dirname:
-        names = ["CT", "SD_TP", "FE", "TED", "TAD0", "TAD2", "OVD", "FVD"]
-        names = ["CT_amp", "RSP", "TAD1"]
+        if names is None:
+            names = ["CT", "SD_TP", "FE", "TED", "TAD0", "TAD2", "OVD", "FVD"]
+            names = ["CT_amp", "RSP", "TAD1"]
         # read in the trees
         filename = dirname + "/all_trees.dat"
         # labels = open(filename).read().strip().split("\n")
         labels = None
     elif "ga_length" in dirname:
-        names = ["CT", "SD_TP", "FE", "Hamming"]
+        if names is None:
+            names = ["CT", "SD_TP", "FE", "Hamming"]
         labels = None
     elif "tsp_length" in dirname:
-        names = ["CT", "SD_TP", "FE", "KendallTau"]
+        if names is None:
+            names = ["CT", "SD_TP", "FE", "KendallTau"]
         labels = None
     for name in names:
         m = np.genfromtxt(dirname + "/" + name + ".dat")
@@ -631,7 +676,7 @@ def make_mds_image(m, filename, labels=None, colour=None):
         try:
             f = mds.fit(m)
         except ValueError as e:
-            print("Can't run MDS for " + filename + ": " + e)
+            print("Can't run MDS for " + filename + ": " + str(e))
             return
 
         # Get the embedding in 2d space
@@ -740,8 +785,7 @@ if __name__ == "__main__":
     elif cmd == "compareMFPTEstimateRWVExact":
         compare_MFPT_estimate_RW_v_exact(dirname)
     elif cmd == "makeCorrelationTable":
-        txt = sys.argv[3]
-        make_correlation_tables(dirname, txt)
+        make_correlation_tables(dirname)
     elif cmd == "makeGridPlots":
         make_grid_plots(dirname)
     elif cmd == "makeGridPlotsByName":
@@ -750,6 +794,8 @@ if __name__ == "__main__":
         write_steady_state(dirname)
     elif cmd == "makeMDSImages":
         make_mds_images(dirname)
+    elif cmd == "makeMDSImagesByName":
+        make_mds_images(dirname, sys.argv[3:])
     elif cmd == "makeScatterPlots":
         make_scatter_plots(dirname)
     elif cmd == "makeHistograms":
