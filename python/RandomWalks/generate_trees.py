@@ -102,7 +102,7 @@ def fitness(t):
     """Calculate fitness of a tree t on the Pagie/Hogeweg problem"""
     X = pagie_hogeweg_X()
     t_vals = semantics(X, t)
-    target = target_fn(X)
+    target = pagie_hogeweg_fn(X)
     return np.sqrt(np.mean((target - t_vals)**2))
     
 def tree_to_fn(t):
@@ -124,27 +124,30 @@ def tree_to_fn(t):
         f = lambda X: op(*(tree_to_fn(ti)(X) for ti in t[1:]))
     return f
 
-def enumerate_semantics(n, vars, fns):
+def enumerate_fitness_and_semantics(n, vars, fns):
     """For all trees of depth <= n with given alphabet, calculate
-    their semantics vector."""
+    their semantics vector and fitness."""
     ntrees = count_trees_of_depth_LE(2, vars, fns)
-    result = []
+    sem = []
+    fit = []
     X = pagie_hogeweg_X()
     for t, d in trees_of_depth_LE(n, vars, fns, False):
-        result.append(semantics(X, t))
-    result = np.array(result)
-    return result
+        sem.append(semantics(X, t))
+        fit.append(fitness(t)) # madly inefficient
+    sem = np.array(sem)
+    fit = np.array(fit)
+    return fit, sem
 
 def semantic_distances(n, vars, fns):
     """For all tree of depth <= n with given alphabet, calculate the
     semantic distances between pairs of trees."""
-    semantics = enumerate_semantics(n, vars, fns)
+    semantics, fitness = enumerate_fitness_and_semantics(n, vars, fns)
     ntrees = semantics.shape[0]
     result = np.zeros((ntrees, ntrees))
     for i, t in enumerate(semantics):
         for j, s in enumerate(semantics):
             d = np.sqrt(np.mean((t - s)**2.0))
-            d = np.log(1.0 + d) # because semantic dists can be huge
+            d = np.log(1.0 + d) # log because semantic dists can be huge
             result[i, j] = d
     return result
     
@@ -165,10 +168,11 @@ if __name__ == "__main__":
             print("%d: %s" % (count_trees_of_given_shape(item, vars, fns),
                              item))
             
-    elif len(sys.argv) > 2 and sys.argv[2] == "enumerate_semantics":
+    elif len(sys.argv) > 2 and sys.argv[2] == "enumerate_fitness_and_semantics":
         dirname = sys.argv[3]
-        result = enumerate_semantics(n, vars, fns)
-        np.savetxt(dirname + "/all_trees_semantics.dat", result)
+        fit, sem = enumerate_fitness_and_semantics(n, vars, fns)
+        np.savetxt(dirname + "/all_trees_semantics.dat", sem)
+        np.savetxt(dirname + "/all_trees_fitness.dat", fit)
         
     elif len(sys.argv) > 2 and sys.argv[2] == "semantic_distances":
         dirname = sys.argv[3]

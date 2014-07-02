@@ -715,22 +715,24 @@ def make_mds_image(m, filename, labels=None, colour=None):
     # http://matplotlib.org/api/path_api.html#matplotlib.path.Path
     # (pass marker=Path() from above), and then use random colours?
 
-def make_UCD_research_images():
-    dirname = "../../results/depth_2/"
-    tree_names = open("../../results/depth_2/all_trees.dat").read().strip().split("\n")
-
+def new_ocean():
     # make a new ocean-derived colourmap
     oceancmap = cm.get_cmap("ocean", 5) # generate an ocean map with 5 values 
     ocean_vals = oceancmap(np.arange(5)) # extract those values as an array 
     ocean_vals = ocean_vals[1:] # discard the green bits at the bottom of the ocean
     new_ocean = mpl.colors.LinearSegmentedColormap.from_list("newocean", ocean_vals) 
+    return new_ocean
+
+def make_UCD_research_images():
+    dirname = "../../results/depth_2/"
+    tree_names = open("../../results/depth_2/all_trees.dat").read().strip().split("\n")
 
     # names = ["TED", "OVD", "CT", "FVD", "FE", "SD_TP", "TAD0", "TAD2"]
     names = ["OVD", "FE", "SD_TP", "TED"]
     names = []
     
     # choose a colour scheme
-    colour_maps = [new_ocean, cm.summer, cm.autumn, cm.copper]
+    colour_maps = [new_ocean(), cm.summer, cm.autumn, cm.copper]
 
     def colour_val(tree_name):
         return max(1.0, random.random() * 0.25 + len(tree_name) / 19.0)
@@ -767,7 +769,7 @@ def make_UCD_research_images():
         fig.savefig(mds_output_filename + ".pdf", bbox_inches='tight')
 
     names = ["OVD", "FE", "SD_TP", "TED"]
-    colour_maps = [new_ocean, cm.summer, cm.YlOrRd, cm.copper]
+    colour_maps = [new_ocean(), cm.summer, cm.YlOrRd, cm.copper]
 
     for name, colour_map in zip(names, colour_maps):
         # do grid
@@ -775,7 +777,56 @@ def make_UCD_research_images():
         grid_output_filename = dirname + "/UCD_research_images/" + name + "_grid"
         p = np.genfromtxt(grid_data_filename)
         make_grid(p, None, grid_output_filename, colour_map, bar=False)
+
+def make_SIGEvo_images():
+    dirname = "../../results/depth_2/"
+    tree_names = open("../../results/depth_2/all_trees.dat").read().strip().split("\n")
+    fit_vals = np.genfromtxt("../../results/depth_2/all_trees_fitness.dat")
+
+    def clamp(x):
+        return max(0.0, min(1.0, x))
+    def colour_val(i):
+        return clamp(np.log(fit_vals[i]) / 5.5) # NB hardcoded for our fit vals
+    def marker_size(tree_name):
+        return 20 + 50 * tree_len(tree_name) / 7.0
+    def tree_len(tree_name):
+        return sum(tree_name.count(s) for s in "+-*/xy")
     
+    names = ["OVD", "FE", "SD_TP", "TED", "TAD1", "FVD", "SEMD", "CT"]
+    # names = ["OVD"]
+    colour_maps = [new_ocean(), cm.summer, cm.YlOrRd, cm.copper, cm.autumn, cm.Purples_r, cm.YlGnBu_r, cm.cool_r]
+    #colour_maps = [new_ocean()]
+
+    for name, colour_map in zip(names, colour_maps):
+        # do mds
+        mds_data_filename = dirname + "/" + name + "_MDS.dat"
+        mds_output_filename = dirname + "/SIGEvo_images/" + name + "_MDS"
+        p = np.genfromtxt(mds_data_filename)
+        # Make an image
+        fig, ax = plt.subplots(figsize=(5, 5), frameon=False)
+        ax.axis('off')
+        # x- and y-coordinates
+        ax.set_aspect('equal')
+        colour_vals = [colour_val(i) for i in range(len(tree_names))]
+        marker_sizes = [marker_size(tree_name) for tree_name in tree_names]
+        marker = '^'
+        ax.scatter(p[:,0], p[:,1], s=marker_sizes,
+                   marker=marker, c=colour_vals, cmap=colour_map,
+                   alpha=0.5, edgecolors='none')
+        
+        mnx, mxx = min(p[:,0]), max(p[:,0])
+        mny, mxy = min(p[:,1]), max(p[:,1])
+        rngx = (mxx - mnx)
+        rngy = (mxy - mny)
+        margin = 0.03
+        ax.set_xlim((mnx - margin * rngx, mxx + margin * rngx))
+        ax.set_ylim((mny - margin * rngy, mxy + margin * rngy))
+        #plt.axis('off')
+        
+        fig.savefig(mds_output_filename + ".png", bbox_inches='tight')
+        fig.savefig(mds_output_filename + ".pdf", bbox_inches='tight')
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1]
     dirname = sys.argv[2]
@@ -802,3 +853,5 @@ if __name__ == "__main__":
         make_histograms(dirname)
     elif cmd == "makeUCDResearchImages":
         make_UCD_research_images()
+    elif cmd == "makeSIGEvoImages":
+        make_SIGEvo_images()
