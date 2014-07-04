@@ -780,7 +780,7 @@ def make_UCD_research_images():
 
 def make_SIGEvo_images():
     dirname = "../../results/depth_2/"
-    ga_dirname = "../../results/ga_length_10/"
+    ga_dirname = "../../results/ga_length_10_per_ind/"
     tree_names = open("../../results/depth_2/all_trees.dat").read().strip().split("\n")
     fit_vals = np.genfromtxt("../../results/depth_2/all_trees_fitness.dat")
 
@@ -797,20 +797,18 @@ def make_SIGEvo_images():
         return bin(i).count("1")
     
     names = ["OVD", "FE", "SD_TP", "TED", "TAD1", "FVD", "CT", "SEMD", "Hamming"]
-    # names = ["OVD"]
     colour_maps = [new_ocean(), cm.PuRd_r, cm.YlOrRd, cm.copper, cm.autumn, cm.Purples_r, cm.YlGnBu_r, cm.summer, cm.BuGn_r]
-    #colour_maps = [new_ocean()]
 
     for name, colour_map in zip(names, colour_maps):
 
         # a hack for doing just a few quickly
-        # if name not in ["Hamming", "SEMD", "FE"]: continue
+        # if name not in ["Hamming"]: continue
         
         if name == "Hamming":
             mds_data_filename = ga_dirname + "/" + name + "_MDS.dat"
             mds_output_filename = ga_dirname + "/SIGEvo_images/" + name + "_MDS"
             colour_vals = [count_ones(i) for i in range(2**10)]
-            marker_sizes = [45 for i in range(2**10)]
+            marker_sizes = [30 for i in range(2**10)]
             marker = 's' # square
             
         else:
@@ -831,14 +829,6 @@ def make_SIGEvo_images():
         ax.scatter(p[:,0], p[:,1], s=marker_sizes,
                    marker=marker, c=colour_vals, cmap=colour_map,
                    alpha=0.5, edgecolors='none')
-        
-        # mnx, mxx = min(p[:,0]), max(p[:,0])
-        # mny, mxy = min(p[:,1]), max(p[:,1])
-        # rngx = (mxx - mnx)
-        # rngy = (mxy - mny)
-        # margin = 0.03
-        # ax.set_xlim((mnx - margin * rngx, mxx + margin * rngx))
-        # ax.set_ylim((mny - margin * rngy, mxy + margin * rngy))
         
         fig.savefig(mds_output_filename + ".png", bbox_inches='tight')
         fig.savefig(mds_output_filename + ".pdf", bbox_inches='tight')
