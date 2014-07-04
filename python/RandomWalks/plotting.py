@@ -798,10 +798,13 @@ def make_SIGEvo_images():
     
     names = ["OVD", "FE", "SD_TP", "TED", "TAD1", "FVD", "CT", "SEMD", "Hamming"]
     # names = ["OVD"]
-    colour_maps = [new_ocean(), cm.summer, cm.YlOrRd, cm.copper, cm.autumn, cm.Purples_r, cm.YlGnBu_r, cm.cool_r, cm.Reds_r]
+    colour_maps = [new_ocean(), cm.PuRd_r, cm.YlOrRd, cm.copper, cm.autumn, cm.Purples_r, cm.YlGnBu_r, cm.summer, cm.BuGn_r]
     #colour_maps = [new_ocean()]
 
     for name, colour_map in zip(names, colour_maps):
+
+        # a hack for doing just a few quickly
+        # if name not in ["Hamming", "SEMD", "FE"]: continue
         
         if name == "Hamming":
             mds_data_filename = ga_dirname + "/" + name + "_MDS.dat"
