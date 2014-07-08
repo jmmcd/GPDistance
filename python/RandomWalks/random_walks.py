@@ -413,6 +413,24 @@ def generate_ga_tm(length, pmut=None):
                 tm[i][j] = (pmut ** h) * ((1.0 - pmut) ** (length - h))
     return tm, hm
 
+def nCk(n, k):
+    """n-choose-k"""
+    return scipy.misc.comb(n, k, True)
+
+def Krovi_Brun_bitstring_MFPT(n, d):
+    """Calculate the MFPT between two bitstrings. n is the bitstring
+    length, and d is the Hamming distance between two individuals.
+    Formula is given in
+    http://math.stackexchange.com/questions/28179/logic-question-ant-walking-a-cube/28188#28188,
+    also a variation is given in 'Hitting time for quantum walks on
+    the hypercube', Hari Krovi and Todd A. Brun, PHYSICAL REVIEW A 73,
+    032341 2006. This is not needed for anything else, just as a check
+    that the formula gives same answers as the general MFPT formula
+    (see ergodic.py) -- it does."""
+    return sum(
+        sum(nCk(n, k) for k in range(m+1)) / float(nCk(n-1, m))
+        for m in range(n-d, n))
+
 def onemax_fitvals(length):
     return [np.sum(ind) for ind in
             itertools.product(*[(0, 1) for x in range(length)])]
@@ -425,7 +443,7 @@ def ga_tm_wrapper(dirname, pmut=None):
     np.savetxt(outfilename, tm)
     outfilename = dirname + "/Hamming.dat"
     np.savetxt(outfilename, hm)
-
+        
 
 ##
 # End of GA (bitstring) stuff
