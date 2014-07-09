@@ -779,10 +779,9 @@ def make_UCD_research_images():
         make_grid(p, None, grid_output_filename, colour_map, bar=False)
 
 def make_SIGEvo_images():
-    dirname = "../../results/depth_2/"
+    gp_dirname = "../../results/depth_2/"
     ga_dirname = "../../results/ga_length_10_per_ind/"
-    tree_names = open("../../results/depth_2/all_trees.dat").read().strip().split("\n")
-    fit_vals = np.genfromtxt("../../results/depth_2/all_trees_fitness.dat")
+    tsp_dirname = "../../results/tsp_length_6_2_opt/"
 
     def clamp(x):
         return max(0.0, min(1.0, x))
@@ -795,29 +794,58 @@ def make_SIGEvo_images():
     def count_ones(i):
         # count ones in the binary rep
         return bin(i).count("1")
+    def tsp_fit(t):
+        def d(a, b): return sqrt((a[0]-b[0])**2.0 + (a[1]-b[1])**2.0)
+        # place a few arbitrary cities
+        c = [[0, 0],
+             [10, 1],
+             [5, 5],
+             [2, 8],
+             [8, 9],
+             [5, 9]]
+        s = t + (t[0],) # replicate initial city to make it easy
+        return sum(d(c[s[i]], c[s[i+1]]) for i in range(len(t)))
+        
     
-    names = ["OVD", "FE", "SD_TP", "TED", "TAD1", "FVD", "CT", "SEMD", "Hamming"]
-    colour_maps = [new_ocean(), cm.PuRd_r, cm.YlOrRd, cm.copper, cm.autumn, cm.Purples_r, cm.YlGnBu_r, cm.summer, cm.BuGn_r]
+    names = ["OVD", "FE", "SD_TP", "TED", "TAD1", "FVD", "CT", "SEMD", "Hamming", "SEMD_alternate_target", "KendallTau"]
+    colour_maps = [new_ocean(), cm.PuRd_r, cm.YlOrRd, cm.copper, cm.autumn, cm.Purples_r, cm.YlGnBu_r, cm.summer, cm.BuGn_r, cm.afmhot, cm.BuPu_r]
 
     for name, colour_map in zip(names, colour_maps):
 
         # a hack for doing just a few quickly
-        # if name not in ["Hamming"]: continue
+        if name not in ["SEMD_alternate_target", "KendallTau"]: continue
         
         if name == "Hamming":
+            # GA
             mds_data_filename = ga_dirname + "/" + name + "_MDS.dat"
             mds_output_filename = ga_dirname + "/SIGEvo_images/" + name + "_MDS"
             colour_vals = [count_ones(i) for i in range(2**10)]
             marker_sizes = [30 for i in range(2**10)]
             marker = 's' # square
-            
+
+        elif name == "KendallTau":
+            # TSP
+            mds_data_filename = tsp_dirname + "/" + name + "_MDS.dat"
+            mds_output_filename = tsp_dirname + "/SIGEvo_images/" + name + "_MDS"
+            colour_vals = [tsp_fit(t) for t in random_walks.tsp_tours(6)] # will be scaled
+            marker_sizes = [30 for i in range(len(colour_vals))]
+            marker = 'o' # circle
+
         else:
-            mds_data_filename = dirname + "/" + name + "_MDS.dat"
-            mds_output_filename = dirname + "/SIGEvo_images/" + name + "_MDS"
+            # GP
+            tree_names = open("../../results/depth_2/all_trees.dat").read().strip().split("\n")
+
+            if name == "SEMD_alternate_target":
+                fit_vals = np.genfromtxt("../../results/depth_2/all_trees_fitness_alternate_target.dat")
+            else:
+                fit_vals = np.genfromtxt("../../results/depth_2/all_trees_fitness.dat")
+            mds_data_filename = gp_dirname + "/" + name + "_MDS.dat"
+            mds_output_filename = gp_dirname + "/SIGEvo_images/" + name + "_MDS"
             colour_vals = [colour_val(i) for i in range(len(tree_names))]
             marker_sizes = [marker_size(tree_name) for tree_name in tree_names]
             marker = '^' # triangle
-            
+
+
         # get existing MDS data
         p = np.genfromtxt(mds_data_filename)
         
