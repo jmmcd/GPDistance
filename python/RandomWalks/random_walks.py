@@ -8,7 +8,7 @@ probabilities as high edge traversal costs) and the shortest path (in
 number of steps, disregarding probabilities)."""
 
 import numpy as np
-import scipy.stats
+import scipy.stats, scipy.misc
 import random
 import sys
 import os
