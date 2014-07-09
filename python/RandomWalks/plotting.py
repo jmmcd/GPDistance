@@ -781,7 +781,7 @@ def make_UCD_research_images():
 def make_SIGEvo_images():
     gp_dirname = "../../results/depth_2/"
     ga_dirname = "../../results/ga_length_10_per_ind/"
-    tsp_dirname = "../../results/tsp_length_6_2_opt/"
+    tsp_dirname = "../../results/tsp_length_7_2_opt/"
 
     def clamp(x):
         return max(0.0, min(1.0, x))
@@ -802,7 +802,9 @@ def make_SIGEvo_images():
              [5, 5],
              [2, 8],
              [8, 9],
-             [5, 9]]
+             [5, 9],
+             [7, 1]
+        ]
         s = t + (t[0],) # replicate initial city to make it easy
         return sum(d(c[s[i]], c[s[i+1]]) for i in range(len(t)))
         
@@ -827,7 +829,7 @@ def make_SIGEvo_images():
             # TSP
             mds_data_filename = tsp_dirname + "/" + name + "_MDS.dat"
             mds_output_filename = tsp_dirname + "/SIGEvo_images/" + name + "_MDS"
-            colour_vals = [tsp_fit(t) for t in random_walks.tsp_tours(6)] # will be scaled
+            colour_vals = [tsp_fit(t) for t in tsp_tours(7)] # will be scaled
             marker_sizes = [30 for i in range(len(colour_vals))]
             marker = 'o' # circle
 
@@ -839,7 +841,7 @@ def make_SIGEvo_images():
                 fit_vals = np.genfromtxt("../../results/depth_2/all_trees_fitness_alternate_target.dat")
             else:
                 fit_vals = np.genfromtxt("../../results/depth_2/all_trees_fitness.dat")
-            mds_data_filename = gp_dirname + "/" + name + "_MDS.dat"
+            mds_data_filename = gp_dirname + "/SEMD_MDS.dat" # not SEMD_alternate_target -- no need
             mds_output_filename = gp_dirname + "/SIGEvo_images/" + name + "_MDS"
             colour_vals = [colour_val(i) for i in range(len(tree_names))]
             marker_sizes = [marker_size(tree_name) for tree_name in tree_names]

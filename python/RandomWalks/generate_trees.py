@@ -98,12 +98,15 @@ def pagie_hogeweg_X():
 def pagie_hogeweg_fn(X):
     return 1.0 / (1.0 + X[0]**-4.0) + 1.0 / (1.0 + X[1]**-4.0)
 
-def fitness(t):
-    """Calculate fitness of a tree t on the Pagie/Hogeweg problem"""
+def another_target_fn(X):
+    return 1.0 + X[0]**2.0
+    
+def fitness(t, target):
+    """Calculate fitness of a tree t on the given problem"""
     X = pagie_hogeweg_X()
     t_vals = semantics(X, t)
-    target = pagie_hogeweg_fn(X)
-    return np.sqrt(np.mean((target - t_vals)**2))
+    target_vals = target(X)
+    return np.sqrt(np.mean((target_vals - t_vals)**2))
     
 def tree_to_fn(t):
     """Convert a tree t to a runnable function."""
@@ -124,7 +127,7 @@ def tree_to_fn(t):
         f = lambda X: op(*(tree_to_fn(ti)(X) for ti in t[1:]))
     return f
 
-def enumerate_fitness_and_semantics(n, vars, fns):
+def enumerate_fitness_and_semantics(n, vars, fns, target=pagie_hogeweg_fn):
     """For all trees of depth <= n with given alphabet, calculate
     their semantics vector and fitness."""
     ntrees = count_trees_of_depth_LE(2, vars, fns)
@@ -133,7 +136,7 @@ def enumerate_fitness_and_semantics(n, vars, fns):
     X = pagie_hogeweg_X()
     for t, d in trees_of_depth_LE(n, vars, fns, False):
         sem.append(semantics(X, t))
-        fit.append(fitness(t)) # madly inefficient
+        fit.append(fitness(t, target)) # madly inefficient
     sem = np.array(sem)
     fit = np.array(fit)
     return fit, sem
@@ -168,12 +171,17 @@ if __name__ == "__main__":
             print("%d: %s" % (count_trees_of_given_shape(item, vars, fns),
                              item))
             
-    elif len(sys.argv) > 2 and sys.argv[2] == "enumerate_fitness_and_semantics":
+    elif len(sys.argv) > 2 and sys.argv[2].startswith("enumerate_fitness_and_semantics"):
         dirname = sys.argv[3]
-        fit, sem = enumerate_fitness_and_semantics(n, vars, fns)
-        np.savetxt(dirname + "/all_trees_semantics.dat", sem)
-        np.savetxt(dirname + "/all_trees_fitness.dat", fit)
-        
+        if sys.argv[2].endswith("alternate_target"):
+            fit, sem = enumerate_fitness_and_semantics(n, vars, fns, another_target_fn)
+            np.savetxt(dirname + "/all_trees_semantics_alternate_target.dat", sem)
+            np.savetxt(dirname + "/all_trees_fitness_alternate_target.dat", fit)
+        else:
+            fit, sem = enumerate_fitness_and_semantics(n, vars, fns, pagie_hogeweg_fn)
+            np.savetxt(dirname + "/all_trees_semantics.dat", sem)
+            np.savetxt(dirname + "/all_trees_fitness.dat", fit)
+            
     elif len(sys.argv) > 2 and sys.argv[2] == "semantic_distances":
         dirname = sys.argv[3]
         result = semantic_distances(n, vars, fns)
