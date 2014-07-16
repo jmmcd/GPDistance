@@ -343,6 +343,12 @@ def get_steady_state(tp):
 def is_symmetric(x):
     return np.allclose(x, x.T)
 
+def operator_difference(x, y):
+    """The difference between two mutation operators could be measured
+    as the mean absolute difference between their transition
+    matrices."""
+    return np.mean(np.abs(x - y))
+
 def read_and_get_dtp_mfpt_sp_steps(dirname):
 
     if os.path.exists(dirname + "/TP_nonnormalised.dat"):
