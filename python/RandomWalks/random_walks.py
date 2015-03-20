@@ -449,11 +449,11 @@ def ga_tm_wrapper(dirname, pmut=None):
     np.savetxt(outfilename, tm)
     outfilename = dirname + "/Hamming.dat"
     np.savetxt(outfilename, hm)
-        
+
 
 ##
 # End of GA (bitstring) stuff
-#########################################################    
+#########################################################
 
 def simulate_random_walk(f, nsteps, selected, nsaves):
     """f is the transition function. nsteps is the number of steps.
@@ -622,7 +622,7 @@ def detailed_balance(tp, s=None):
     # if it's symmetric
     f = tp * s.reshape((len(s), 1))
     return is_symmetric(f)
-    
+
 ###################################################################
 # TSP stuff
 ###################################################################
@@ -659,7 +659,7 @@ def three_opt(p, broad=False):
         which = random.randint(0, 7) # allow any of the 8
     else:
         which = random.choice([3, 4, 5, 6]) # allow only strict 3-opt
-        
+
     # in the following slices, the nodes abcdef are referred to by
     # name. x:y:-1 means step backwards. anything like c+1 or d-1
     # refers to c or d, but to include the item itself, we use the +1
@@ -680,7 +680,7 @@ def three_opt(p, broad=False):
         sol = p[:a+1] + p[e:d-1:-1] + p[b:c+1]    + p[f:] # 3-opt
     elif which == 7:
         sol = p[:a+1] + p[e:d-1:-1] + p[c:b-1:-1] + p[f:] # 2-opt
-        
+
     return canonicalise(sol)
 
 def canonicalise(p):
@@ -712,7 +712,7 @@ def sample_transitions(n, opt=2, nsamples=10000):
         move = three_opt
     else:
         move = two_opt
-    
+
     tours_to_ints = {}
     for i, tour in enumerate(tsp_tours(n)):
         tours_to_ints[tour] = i
@@ -736,8 +736,8 @@ def kendall_tau_permutation_distances(n):
     return kt
 
 def tsp_tm_wrapper(dirname, opt=2):
-    # dirname should be <dir>/tsp_length_6_2_opt, for example
-    length = int(dirname.strip("/").split("_")[2])
+    # dirname should be <dir>/tsp_length_6_2opt, for example
+    length = int(dirname.strip("/").split("_")[-2])
     tm = sample_transitions(length, opt)
     outfilename = dirname + "/TP.dat"
     np.savetxt(outfilename, tm)
@@ -763,9 +763,9 @@ if __name__ == "__main__":
     elif "land_of_oz" in dirname:
         generate_oz_tm_mfpte(dirname)
     elif "tsp" in dirname:
-        if "2_opt" in dirname:
+        if "2opt" in dirname:
             tsp_tm_wrapper(dirname, opt=2)
-        elif "3_opt" in dirname:
+        elif "3opt" in dirname:
             tsp_tm_wrapper(dirname, opt=3)
         else:
             raise ValueError("Unexpected dirname " + dirname)
