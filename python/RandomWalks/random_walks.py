@@ -627,7 +627,19 @@ def detailed_balance(tp, s=None):
 # TSP stuff
 ###################################################################
 
+def swap_two(p):
+    """Swap-two just swaps two elements of a permutation. As long as they
+    are distinct a new permutation is formed. We canonicalise after."""
+    a = random.randrange(len(p))
+    b = random.randrange(len(p)-1)
+    if b >= a:
+        b += 1
+    sol = p[:]
+    sol[a], sol[b] = sol[b], sol[a]
+    return canonicalise(sol)
+
 def two_opt(p):
+
     """2-opt means choosing any two non-contiguous edges ab and cd,
     chopping them, and then reconnecting (such that the result is
     still a complete tour). There are actually two ways of doing it --
@@ -703,15 +715,17 @@ def tsp_tours(n):
         if p[1] > p[-1]: continue
         yield p
 
-def sample_transitions(n, opt=2, nsamples=10000):
+def sample_transitions(n, move="2opt", nsamples=10000):
     length = len(list(tsp_tours(n)))
     tm = np.zeros((length, length))
     delta = 1.0 / nsamples
 
-    if opt == 3:
+    if move == "3opt":
         move = three_opt
-    else:
+    elif move == "2opt":
         move = two_opt
+    else:
+        raise ValueError("Unexpected move type: " + str(move))
 
     tours_to_ints = {}
     for i, tour in enumerate(tsp_tours(n)):
@@ -735,10 +749,10 @@ def kendall_tau_permutation_distances(n):
             kt[i][j] = kendall_tau_permutation_distance(ti, tj)
     return kt
 
-def tsp_tm_wrapper(dirname, opt=2):
+def tsp_tm_wrapper(dirname, move="2opt"):
     # dirname should be <dir>/tsp_length_6_2opt, for example
     length = int(dirname.strip("/").split("_")[-2])
-    tm = sample_transitions(length, opt)
+    tm = sample_transitions(length, move)
     outfilename = dirname + "/TP.dat"
     np.savetxt(outfilename, tm)
     kt = kendall_tau_permutation_distances(length)
@@ -764,9 +778,9 @@ if __name__ == "__main__":
         generate_oz_tm_mfpte(dirname)
     elif "tsp" in dirname:
         if "2opt" in dirname:
-            tsp_tm_wrapper(dirname, opt=2)
+            tsp_tm_wrapper(dirname, move="2opt")
         elif "3opt" in dirname:
-            tsp_tm_wrapper(dirname, opt=3)
+            tsp_tm_wrapper(dirname, move="3opt")
         else:
             raise ValueError("Unexpected dirname " + dirname)
     read_and_get_dtp_mfpt_sp_steps(dirname)
