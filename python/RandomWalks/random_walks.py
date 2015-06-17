@@ -349,6 +349,13 @@ def operator_difference(x, y):
     matrices."""
     return np.mean(np.abs(x - y))
 
+def compound_operator(wts, ops):
+    """A compound operator emulates the behaviour of variable
+    neighbourhood search: we first choose an operator according to
+    probabilities, then we run the operator. The resulting matrix is
+    just the weighted sum of the basic operators' matrices."""
+    return sum((wt * op for (wt, op) in zip(wts, ops)))
+
 def read_and_get_dtp_mfpt_sp_steps(dirname):
 
     if os.path.exists(dirname + "/TP_nonnormalised.dat"):
@@ -542,6 +549,14 @@ def random_search(fitvals, steps, allow_repeat=True):
     fitness_samples = [fitvals[sample] for sample in samples]
     return samples, fitness_samples, min(fitness_samples)
 
+def random_walk(tp, steps):
+    s = random.randint(0, len(tp)-1)
+    samples = []
+    for i in range(steps):
+        t = roulette_wheel(tp[s])
+        samples.append(s)
+    return samples
+
 def hillclimb(tp, fitvals, steps, rw=False):
     s = random.randint(0, len(fitvals)-1)
     samples = []
@@ -612,6 +627,9 @@ def gini_coeff(x):
     r = np.argsort(np.argsort(-x)) # calculates zero-based ranks
     return 1 - (2.0 * (r*x).sum() + s)/(n*s)
 
+def mean_gini_coeff(t):
+    return np.mean(gini_coeff(ti) for ti in t)
+
 def detailed_balance(tp, s=None):
     """Calculate whether a given chain has the detailed balance
     condition, that is given a transition matrix tp, with stationary
@@ -630,7 +648,8 @@ def detailed_balance(tp, s=None):
 def swap_two(p):
     """Swap-two just swaps two elements of a permutation. As long as they
     are distinct a new permutation is formed. We canonicalise after."""
-    a, b = random.sample(xrange(len(p)), 2)
+    a, b = sorted(random.sample(xrange(len(p)), 2))
+    print a, b
     sol = p[:]
     sol[a], sol[b] = sol[b], sol[a]
     return canonicalise(sol)
