@@ -630,10 +630,7 @@ def detailed_balance(tp, s=None):
 def swap_two(p):
     """Swap-two just swaps two elements of a permutation. As long as they
     are distinct a new permutation is formed. We canonicalise after."""
-    a = random.randrange(len(p))
-    b = random.randrange(len(p)-1)
-    if b >= a:
-        b += 1
+    a, b = random.sample(xrange(len(p)), 2)
     sol = p[:]
     sol[a], sol[b] = sol[b], sol[a]
     return canonicalise(sol)
@@ -701,7 +698,9 @@ def canonicalise(p):
     canonicalise on the former. The general recipe is: p[0] is 0, and
     p[1] is the smaller of p[1]'s neighbours (so p[-1] is the
     larger)."""
-    assert p[0] == 0
+    if p[0] != 0:
+        i = p.index(0)
+        p[:] = p[i:] + p[:i]
     if p[1] > p[-1]:
         p[1:] = p[-1:0:-1]
     return p
@@ -724,6 +723,8 @@ def sample_transitions(n, move="2opt", nsamples=10000):
         move = three_opt
     elif move == "2opt":
         move = two_opt
+    elif move == "swap":
+        move = two_swap
     else:
         raise ValueError("Unexpected move type: " + str(move))
 
@@ -781,6 +782,8 @@ if __name__ == "__main__":
             tsp_tm_wrapper(dirname, move="2opt")
         elif "3opt" in dirname:
             tsp_tm_wrapper(dirname, move="3opt")
+        elif "swap" in dirname:
+            tsp_tm_wrapper(dirname, move="swap")
         else:
             raise ValueError("Unexpected dirname " + dirname)
     read_and_get_dtp_mfpt_sp_steps(dirname)
