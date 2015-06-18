@@ -288,20 +288,18 @@ def floyd_warshall_nsteps(adj):
     """Disregard the transition probabilities, other than to see
     whether an edge traversal is allowed or not. Calculate the number
     of steps required to get from each point to each other."""
+    n = adj.shape[0]
     x = discretize_probabilities(adj)
     x = floyd_warshall(x)
     set_self_transition_zero(x)
     return x
 
 def discretize_probabilities(d):
-    """Set the edge cost to 1 if there is a nonzero probability, and
-    to infinity if there is a zero probability."""
-    retval = np.ones_like(d, dtype=float)
-    inf = np.infty
-    for i in range(len(d)):
-        for j in range(len(d)):
-            if not d[i, j] > 0.0:
-                retval[i, j] = inf
+    """Set the edge cost to 1 if there is a nonzero probability, and to
+    infinity if there is a zero probability."""
+    retval = np.ones_like(d, dtype=np.float)
+    n = d.shape[0]
+    retval[d <= 0.0] = np.infty
     return retval
 
 def get_dtp(t):
