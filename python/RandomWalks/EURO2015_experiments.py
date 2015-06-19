@@ -86,7 +86,7 @@ def mu_GINI(path_results):
         mu_GINI_tp_results[rep, op] = mu_GINI_tp
         mu_GINI_mfpt_results[rep, op] = mu_GINI_mfpt
         
-        print "%s %s mu(GINI(tp)): %.3f %.3f %.3f %.3f" % (rep, op, mu_GINI, sigma_GINI_tp, mu_GINI_mfpt, sigma_GINI_mfpt)
+        print "%s %s mu(GINI(tp)): %.3f %.3f %.3f %.3f" % (rep, op, mu_GINI_tp, sigma_GINI_tp, mu_GINI_mfpt, sigma_GINI_mfpt)
 
         # use a rw of length equal to size of space
         # expect many duplicates even with explorative operators
@@ -236,7 +236,40 @@ def write_gp_trees(path_results):
 
         outfile.write(str(tree) + "\n")
 
+def operator_difference_experiment():
+    for ops in [
+            ("2opt", "3opt"),
+            ("2opt", "swap"),
+            ("3opt", "swap")]:
+        basedir = "/Users/jmmcd/Dropbox/GPDistance/results/tsp_length_6_"
+        ps = [np.genfromtxt(basedir + op + "/TP.dat") for op in ops]
+        names = "+".join(ops)
+        delta = random_walks.operator_difference_RMSE(*ps)
+        print names, delta
+        
+def compound_operators_experiment():
+    print "Operator(s) mu(GINI(tp)) sigma(GINI(tp)) mu(GINI(mfpt)) sigma(GINI(mfpt))"
+    for ops in [
+            ("2opt",),
+            ("3opt",),
+            ("swap",),
+            ("2opt", "3opt"),
+            ("2opt", "swap"),
+            ("3opt", "swap"),
+            ("2opt", "3opt", "swap")]:
+        basedir = "/Users/jmmcd/Dropbox/GPDistance/results/tsp_length_6_"
+        ps = [np.genfromtxt(basedir + op + "/TP.dat") for op in ops]
+        names = "+".join(ops)
+        wts = [1.0 / len(ops) for _ in ops]
+        compound_tp = random_walks.compound_operator(wts, ps)
+        compound_mfpt = random_walks.get_mfpt(compound_tp)
+        
+        mu_GINI_tp, sigma_GINI_tp = random_walks.mu_sigma_GINI(compound_tp)
+        mu_GINI_mfpt, sigma_GINI_mfpt = random_walks.mu_sigma_GINI(compound_mfpt)
 
+        print "%s mu(GINI(tp)): %.3f %.3f %.3f %.3f" % (names, mu_GINI_tp, sigma_GINI_tp, mu_GINI_mfpt, sigma_GINI_mfpt)
+
+            
 def rw_experiment(tp):
     """Proportion of unique individuals in a random walk"""
     reps = 30
@@ -307,4 +340,5 @@ def main():
     plotting.write_steady_state(os.path.join(path_results, "depth_2"))
 
 if __name__ == "__main__":
-    main()
+    # compound_operators_experiment()
+    operator_difference_experiment()

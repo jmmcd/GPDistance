@@ -341,12 +341,24 @@ def get_steady_state(tp):
 def is_symmetric(x):
     return np.allclose(x, x.T)
 
-def operator_difference(x, y):
-    """The difference between two mutation operators could be measured
-    as the mean absolute difference between their transition
-    matrices."""
-    return np.mean(np.abs(x - y))
+def operator_difference_RMSE(x, y):
+    """The difference between two mutation operators could be measured as
+    the RMSE of their transition matrices.
 
+    """
+    return np.sqrt(np.mean((x - y)**2))
+
+def operator_difference_KL(x, y):
+    """The difference between two mutation operators could be measured as
+    the symmetrized Kullback-Leibler divergence between corresponding
+    rows, then the mean across rows. KL is not symmetric, but we can
+    take the mean of the two directions. However, with this method we
+    will get infinite results whenever there are zeros in the y, so
+    this method is not really useful in practice."""
+    kl_xy = np.mean([scipy.stats.entropy(xi, yi) for xi, yi in zip(x, y)])
+    kl_yx = np.mean([scipy.stats.entropy(yi, xi) for xi, yi in zip(x, y)])
+    return 0.5 * (kl_xy + kl_yx)
+    
 def compound_operator(wts, ops):
     """A compound operator emulates the behaviour of variable
     neighbourhood search: we first choose an operator according to
@@ -628,6 +640,11 @@ def gini_coeff(x):
 def mean_gini_coeff(t):
     return np.mean(gini_coeff(ti) for ti in t)
 
+def mu_sigma_GINI(t):
+    GINI = np.array([gini_coeff(ti) for ti in t])
+    return np.mean(GINI), np.std(GINI)
+
+
 def detailed_balance(tp, s=None):
     """Calculate whether a given chain has the detailed balance
     condition, that is given a transition matrix tp, with stationary
@@ -647,7 +664,6 @@ def swap_two(p):
     """Swap-two just swaps two elements of a permutation. As long as they
     are distinct a new permutation is formed. We canonicalise after."""
     a, b = sorted(random.sample(xrange(len(p)), 2))
-    print a, b
     sol = p[:]
     sol[a], sol[b] = sol[b], sol[a]
     return canonicalise(sol)
@@ -741,7 +757,7 @@ def sample_transitions(n, move="2opt", nsamples=10000):
     elif move == "2opt":
         move = two_opt
     elif move == "swap":
-        move = two_swap
+        move = swap_two
     else:
         raise ValueError("Unexpected move type: " + str(move))
 
