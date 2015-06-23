@@ -683,6 +683,9 @@ def two_opt(p):
     sol = p[:i+1] + p[j:i:-1] + p[j+1:]
     return canonicalise(sol)
 
+def three_opt_broad(p):
+    return three_opt(p, broad=True)
+
 def three_opt(p, broad=False):
     """In the broad sense, 3-opt means choosing any three edges ab, cd
     and ef and chopping them, and then reconnecting (such that the

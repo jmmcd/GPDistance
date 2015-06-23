@@ -51,7 +51,7 @@ setups = [
     ]
 
 def mu_GINI(path_results):
-    pmuts = [0.0001, 0.000333, 0.001, 0.00333, 0.01, 0.0333, 0.1, 0.333]
+    pmuts = [0.0001, 0.001/3, 0.001, 0.01/3, 0.01, 0.1/3, 0.1, 1.0/3]    
     prop_unique_rw_results = {}
     mu_GINI_tp_results = {}
     mu_GINI_mfpt_results = {}
@@ -107,7 +107,7 @@ def plot_prop_unique_rw(path_results, results, mu_GINI_tp, mu_GINI_mfpt):
     xyz = [x, y_mean, y_err]
     xyz = zip(*xyz)
     xyz.sort()
-    x, y_mean, y_err = xyz.sort()
+    x, y_mean, y_err = xyz
     plt.figure(figsize=(5, 2.5))
     plt.errorbar(x, y, yerr=y_err, lw=3)
     plt.title("")
@@ -128,7 +128,7 @@ def plot_prop_unique_rw(path_results, results, mu_GINI_tp, mu_GINI_mfpt):
     xyz = [x, y_mean, y_err]
     xyz = zip(*xyz)
     xyz.sort()
-    x, y_mean, y_err = xyz.sort()
+    x, y_mean, y_err = xyz
     plt.figure(figsize=(5, 2.5))
     plt.errorbar(x, y, yerr=y_err, lw=3)
     plt.title("")
@@ -145,7 +145,7 @@ def plot_prop_unique_rw(path_results, results, mu_GINI_tp, mu_GINI_mfpt):
 def ga_hc_experiment(path_results):
     """Run some hill-climbs in a bitstring space with different
     per-gene mutation values."""
-    pmuts = [0.0001, 0.000333, 0.001, 0.00333, 0.01, 0.0333, 0.1, 0.333]
+    pmuts = [0.0001, 0.001/3, 0.001, 0.01/3, 0.01, 0.1/3, 0.1, 1.0/3]    
     noise_vals = [0, 1, 10, 100, 1000]
     results = OrderedDict()
 
@@ -237,26 +237,24 @@ def write_gp_trees(path_results):
         outfile.write(str(tree) + "\n")
 
 def operator_difference_experiment():
-    for ops in [
-            ("2opt", "3opt"),
-            ("2opt", "swap"),
-            ("3opt", "swap")]:
+    opss = ("2opt", "3opt", "3opt_broad", "swap")
+    for ops in itertools.combinations(opss, 2):
         basedir = "/Users/jmmcd/Dropbox/GPDistance/results/tsp_length_6_"
         ps = [np.genfromtxt(basedir + op + "/TP.dat") for op in ops]
         names = "+".join(ops)
         delta = random_walks.operator_difference_RMSE(*ps)
         print names, delta
         
+def combinations_var_len(x):
+    """Combinations of all lengths: 'ABC' -> '', 'A', 'B', 'C', 'AB', 'AC', 'BC', 'ABC'"""
+    for i in range(len(x) + 1):
+        for item in itertools.combinations(x, i):
+            yield item
+        
 def compound_operators_experiment():
     print "Operator(s) mu(GINI(tp)) sigma(GINI(tp)) mu(GINI(mfpt)) sigma(GINI(mfpt))"
-    for ops in [
-            ("2opt",),
-            ("3opt",),
-            ("swap",),
-            ("2opt", "3opt"),
-            ("2opt", "swap"),
-            ("3opt", "swap"),
-            ("2opt", "3opt", "swap")]:
+    opss = ("2opt", "3opt", "3opt_broad", "swap")
+    for ops in combinations_var_len(opss)[1:]: # don't need empty one
         basedir = "/Users/jmmcd/Dropbox/GPDistance/results/tsp_length_6_"
         ps = [np.genfromtxt(basedir + op + "/TP.dat") for op in ops]
         names = "+".join(ops)
