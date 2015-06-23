@@ -254,7 +254,9 @@ def combinations_var_len(x):
 def compound_operators_experiment():
     print "Operator(s) mu(GINI(tp)) sigma(GINI(tp)) mu(GINI(mfpt)) sigma(GINI(mfpt))"
     opss = ("2opt", "3opt", "3opt_broad", "swap")
-    for ops in combinations_var_len(opss)[1:]: # don't need empty one
+    for ops in combinations_var_len(opss):
+        if len(ops) == 0:
+            continue # don't need empty one
         basedir = "/Users/jmmcd/Dropbox/GPDistance/results/tsp_length_6_"
         ps = [np.genfromtxt(basedir + op + "/TP.dat") for op in ops]
         names = "+".join(ops)
