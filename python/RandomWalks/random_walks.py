@@ -24,6 +24,7 @@ import cPickle as pickle
 # J. Laurie Snell (1976) Finite Markov Chains. Springer-Verlag,
 # Berlin.
 import ergodic
+import tsp
 
 def analyse_random_walk(dirname):
     """Java code will write out a list of sampled lengths of random
@@ -178,7 +179,6 @@ def MSTP_max_n_steps(x, n=10):
         # the ith column is copied from the ith column of A^n, where A
         # is absorbing in state i
         mstp[:, i] = np.linalg.matrix_power(xi, n)[:, i]
-        print i
     return mstp
 
 def read_transition_matrix(filename):
@@ -656,163 +656,11 @@ def detailed_balance(tp, s=None):
     f = tp * s.reshape((len(s), 1))
     return is_symmetric(f)
 
-###################################################################
-# TSP stuff
-###################################################################
-
-def swap_two(p):
-    """Swap-two just swaps any two elements of a permutation. As long as
-    they are distinct a new permutation is formed. We canonicalise
-    after."""
-    a, b = sorted(random.sample(xrange(len(p)), 2))
-    p = p[:]
-    p[a], p[b] = p[b], p[a]
-    return canonicalise(p)
-
-def swap_adjacent(p):
-    """Choose an element and swap with the following element (if we
-    choose the last, swap with the first. Canonicalise after."""
-    n = len(p)
-    a = random.randrange(n)
-    b = (a+1) % n
-    p = p[:]
-    p[a], p[b] = p[b], p[a]
-    return canonicalise(p)
-
-def two_opt(p):
-    """2-opt means choosing any two non-contiguous edges ab and cd,
-    chopping them, and then reconnecting (such that the result is
-    still a complete tour). There are actually two ways of doing it --
-    one is the identity, and one gives a new tour."""
-    n = len(p)
-    i = random.randint(0, n)
-    j = None
-    while j == None or abs(i - j) <= 1 or abs(i - j) == n:
-        j = random.randint(0, n)
-    i, j = min(i, j), max(i, j)
-    p = p[:i+1] + p[j:i:-1] + p[j+1:]
-    return canonicalise(p)
-
-def three_opt_broad(p):
-    return three_opt(p, broad=True)
-
-def three_opt(p, broad=False):
-    """In the broad sense, 3-opt means choosing any three edges ab, cd
-    and ef and chopping them, and then reconnecting (such that the
-    result is still a complete tour). There are eight ways of doing
-    it. One is the identity, 3 are 2-opt moves (because either ab, cd,
-    or ef is reconnected), and 4 are 3-opt moves (in the narrower
-    sense)."""
-    n = len(p)
-    # choose 3 unique edges defined by their first node
-    a, c, e = random.sample(range(n+1), 3)
-    # without loss of generality, sort
-    a, c, e = sorted([a, c, e])
-    b, d, f = a+1, c+1, e+1
-
-    if broad == True:
-        which = random.randint(0, 7) # allow any of the 8
-    else:
-        which = random.choice([3, 4, 5, 6]) # allow only strict 3-opt
-
-    # in the following slices, the nodes abcdef are referred to by
-    # name. x:y:-1 means step backwards. anything like c+1 or d-1
-    # refers to c or d, but to include the item itself, we use the +1
-    # or -1 in the slice
-    if which == 0:
-        sol = p[:a+1] + p[b:c+1]    + p[d:e+1]    + p[f:] # identity
-    elif which == 1:
-        sol = p[:a+1] + p[b:c+1]    + p[e:d-1:-1] + p[f:] # 2-opt
-    elif which == 2:
-        sol = p[:a+1] + p[c:b-1:-1] + p[d:e+1]    + p[f:] # 2-opt
-    elif which == 3:
-        sol = p[:a+1] + p[c:b-1:-1] + p[e:d-1:-1] + p[f:] # 3-opt
-    elif which == 4:
-        sol = p[:a+1] + p[d:e+1]    + p[b:c+1]    + p[f:] # 3-opt
-    elif which == 5:
-        sol = p[:a+1] + p[d:e+1]    + p[c:b-1:-1] + p[f:] # 3-opt
-    elif which == 6:
-        sol = p[:a+1] + p[e:d-1:-1] + p[b:c+1]    + p[f:] # 3-opt
-    elif which == 7:
-        sol = p[:a+1] + p[e:d-1:-1] + p[c:b-1:-1] + p[f:] # 2-opt
-
-    return canonicalise(sol)
-
-def canonicalise(p):
-    """In any TSP, 01234 is equivalent to 23410. We canonicalise on
-    the former. In a symmetric TSP, 01234 is equivalent to 04321. We
-    canonicalise on the former. The general recipe is: p[0] is 0, and
-    p[1] is the smaller of p[1]'s neighbours (so p[-1] is the
-    larger)."""
-    if p[0] != 0:
-        i = p.index(0)
-        p[:] = p[i:] + p[:i]
-    if p[1] > p[-1]:
-        p[1:] = p[-1:0:-1]
-    return p
-
-
-def tsp_tours(n):
-    """Generate all tours of length n. A tour is a permutation. But we
-    canonicalise as above."""
-    for p in itertools.permutations(range(n)):
-        if p[0] != 0: continue
-        if p[1] > p[-1]: continue
-        yield p
-
-def sample_transitions(n, move="2opt", nsamples=10000):
-    length = len(list(tsp_tours(n)))
-    tm = np.zeros((length, length))
-    delta = 1.0 / nsamples
-
-    if move == "3opt":
-        move = three_opt
-    elif move == "2opt":
-        move = two_opt
-    elif move == "swap":
-        move = swap_two
-    else:
-        raise ValueError("Unexpected move type: " + str(move))
-
-    tours_to_ints = {}
-    for i, tour in enumerate(tsp_tours(n)):
-        tours_to_ints[tour] = i
-
-    for i, tour in enumerate(tsp_tours(n)):
-        for j in range(nsamples):
-            t = move(list(tour))
-            tm[i][tours_to_ints[tuple(t)]] += delta
-    return tm
-
-def kendall_tau_permutation_distance(t1, t2):
-    corr, p = scipy.stats.kendalltau(t1, t2)
-    return 1.0 - corr
-
-def kendall_tau_permutation_distances(n):
-    m = len(list(tsp_tours(n)))
-    kt = np.zeros((m, m))
-    for i, ti in enumerate(tsp_tours(n)):
-        for j, tj in enumerate(tsp_tours(n)):
-            kt[i][j] = kendall_tau_permutation_distance(ti, tj)
-    return kt
-
-def tsp_tm_wrapper(dirname, move="2opt"):
-    # dirname should be <dir>/tsp_length_6_2opt, for example
-    length = int(dirname.strip("/").split("_")[-2])
-    tm = sample_transitions(length, move)
-    outfilename = dirname + "/TP.dat"
-    np.savetxt(outfilename, tm)
-    kt = kendall_tau_permutation_distances(length)
-    outfilename = dirname + "/KendallTau.dat"
-    np.savetxt(outfilename, kt)
-
-#
-# end of TSP stuff
-#######################################################
 
 if __name__ == "__main__":
     dirname = sys.argv[1]
 
+    print "doing TP"
     if "depth" in dirname:
         # Matrices have already been generated by Java code.
         pass
@@ -825,16 +673,23 @@ if __name__ == "__main__":
         generate_oz_tm_mfpte(dirname)
     elif "tsp" in dirname:
         if "2opt" in dirname:
-            tsp_tm_wrapper(dirname, move="2opt")
+            tsp.tsp_tm_wrapper(dirname, move="2opt")
+        elif "3opt_broad" in dirname:
+            tsp.tsp_tm_wrapper(dirname, move="3opt_broad")
         elif "3opt" in dirname:
-            tsp_tm_wrapper(dirname, move="3opt")
+            tsp.tsp_tm_wrapper(dirname, move="3opt")
+        elif "swap_adj" in dirname:
+            tsp.tsp_tm_wrapper(dirname, move="swap_adj")
         elif "swap" in dirname:
-            tsp_tm_wrapper(dirname, move="swap")
+            tsp.tsp_tm_wrapper(dirname, move="swap")
         else:
             raise ValueError("Unexpected dirname " + dirname)
+    print "doing DTP MFPT SP STEPS"
     read_and_get_dtp_mfpt_sp_steps(dirname)
+    print "doing SDTP CT"
     write_symmetric_remoteness(dirname)
     # estimate_MFPT_with_supernode(dirname)
     # analyse_random_walk(dirname)
     # test_random_walk()
+    print "doing MSTP"
     MSTP_wrapper(dirname)

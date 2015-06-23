@@ -45,9 +45,15 @@ setups = [
     ("tsp_length_6", "3opt"),
     ("tsp_length_7", "3opt"),
     ("tsp_length_8", "3opt"),
+    ("tsp_length_6", "3opt_broad"),
+    ("tsp_length_7", "3opt_broad"),
+    ("tsp_length_8", "3opt_broad"),
     ("tsp_length_6", "swap"),
     ("tsp_length_7", "swap"),
     ("tsp_length_8", "swap"),
+    ("tsp_length_6", "swap_adj"),
+    ("tsp_length_7", "swap_adj"),
+    ("tsp_length_8", "swap_adj"),
     ]
 
 def mu_GINI(path_results):
@@ -237,13 +243,14 @@ def write_gp_trees(path_results):
         outfile.write(str(tree) + "\n")
 
 def operator_difference_experiment():
-    opss = ("2opt", "3opt", "3opt_broad", "swap")
+    opss = ("2opt", "3opt", "3opt_broad", "swap", "swap_adj")
     for ops in itertools.combinations(opss, 2):
-        basedir = "/Users/jmmcd/Dropbox/GPDistance/results/tsp_length_6_"
-        ps = [np.genfromtxt(basedir + op + "/TP.dat") for op in ops]
-        names = "+".join(ops)
-        delta = random_walks.operator_difference_RMSE(*ps)
-        print names, delta
+        for n in range(6, 9):
+            basedir = "/Users/jmmcd/Dropbox/GPDistance/results/tsp_length_%d_" % n
+            ps = [np.genfromtxt(basedir + op + "/TP.dat") for op in ops]
+            names = "+".join(ops)
+            delta = random_walks.operator_difference_RMSE(*ps)
+            print names, delta
         
 def combinations_var_len(x):
     """Combinations of all lengths: 'ABC' -> '', 'A', 'B', 'C', 'AB', 'AC', 'BC', 'ABC'"""
@@ -253,7 +260,7 @@ def combinations_var_len(x):
         
 def compound_operators_experiment():
     print "Operator(s) mu(GINI(tp)) sigma(GINI(tp)) mu(GINI(mfpt)) sigma(GINI(mfpt))"
-    opss = ("2opt", "3opt", "3opt_broad", "swap")
+    opss = ("2opt", "3opt", "3opt_broad", "swap", "swap_adj")
     for ops in combinations_var_len(opss):
         if len(ops) == 0:
             continue # don't need empty one
