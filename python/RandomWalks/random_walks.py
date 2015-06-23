@@ -661,15 +661,25 @@ def detailed_balance(tp, s=None):
 ###################################################################
 
 def swap_two(p):
-    """Swap-two just swaps two elements of a permutation. As long as they
-    are distinct a new permutation is formed. We canonicalise after."""
+    """Swap-two just swaps any two elements of a permutation. As long as
+    they are distinct a new permutation is formed. We canonicalise
+    after."""
     a, b = sorted(random.sample(xrange(len(p)), 2))
-    sol = p[:]
-    sol[a], sol[b] = sol[b], sol[a]
-    return canonicalise(sol)
+    p = p[:]
+    p[a], p[b] = p[b], p[a]
+    return canonicalise(p)
+
+def swap_adjacent(p):
+    """Choose an element and swap with the following element (if we
+    choose the last, swap with the first. Canonicalise after."""
+    n = len(p)
+    a = random.randrange(n)
+    b = (a+1) % n
+    p = p[:]
+    p[a], p[b] = p[b], p[a]
+    return canonicalise(p)
 
 def two_opt(p):
-
     """2-opt means choosing any two non-contiguous edges ab and cd,
     chopping them, and then reconnecting (such that the result is
     still a complete tour). There are actually two ways of doing it --
@@ -680,8 +690,8 @@ def two_opt(p):
     while j == None or abs(i - j) <= 1 or abs(i - j) == n:
         j = random.randint(0, n)
     i, j = min(i, j), max(i, j)
-    sol = p[:i+1] + p[j:i:-1] + p[j+1:]
-    return canonicalise(sol)
+    p = p[:i+1] + p[j:i:-1] + p[j+1:]
+    return canonicalise(p)
 
 def three_opt_broad(p):
     return three_opt(p, broad=True)
