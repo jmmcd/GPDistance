@@ -36,17 +36,23 @@ def swap_adj(p, ab=None):
     p[a], p[b] = p[b], p[a]
     return canonicalise(p)
 
-def two_opt(p):
+def two_opt(p, ab=None):
+    # FIXME need to take account of ordering -- we throw away the
+    # original ordering so we must avoid over-counting when generating
+    # these
+
     """2-opt means choosing any two non-contiguous edges ab and cd,
     chopping them, and then reconnecting (such that the result is
     still a complete tour). There are actually two ways of doing it --
     one is the identity, and one gives a new tour."""
-    n = len(p)
-    a = random.randrange(n)
-    b = random.randrange(n-2) # b=a-1, b=a, and b=a+1 are invalid
-    if (b % n) in ((a-1) % n, a % n, (a+1) % n):
-        b = (b+3) % n
-    a, b = min(a, b), max(a, b)
+    if ab is None:
+        n = len(p)
+        a = random.randrange(n)
+        # b=a-1, b=a, and b=a+1 are invalid
+        b = random.randrange(a+2, a+n-1) % n
+        a, b = min(a, b), max(a, b)
+    else:
+        a, b = ab
     p = p[:a+1] + p[b:a:-1] + p[b+1:]
     return canonicalise(p)
 
@@ -54,6 +60,25 @@ def three_opt_broad(p):
     return three_opt(p, broad=True)
 
 def three_opt(p, broad=False):
+    # FIXME need to ensure non-contiguity of the three
+    # so there are n choices for first, n-3 for second,
+    # and either n-5 or n-6 for the last (depending on whether
+    # the first two were 2 apart or more)
+    #
+    # there are only 2 ways of choosing the second edge such that it's
+    # within 2 of the first edge, and thereafter there are n-5 ways
+    # for the third
+    #
+    # there are therefore n-5 ways of choosing the second edge such
+    # that it's not within 2 of the first edge, and thereafter n-6
+    # ways for the third
+    #
+    # hence total is n * 2 * (n-5) + n * (n-5) * (n-6) = n(n-5)(n-4)
+    #
+    # but order is unimportant, so we divide by 3! = 6. eg with a
+    # 6-node tour there are just two ways to choose the three edges --
+    # either start on 0 and take every second one, or start on 1 and
+    # take every second one.
     """In the broad sense, 3-opt means choosing any three edges ab, cd
     and ef and chopping them, and then reconnecting (such that the
     result is still a complete tour). There are eight ways of doing
@@ -180,6 +205,12 @@ def test_2opt():
     x = y = z = 0
     for i in range(m):
         a = random.randrange(n)
+
+        # eg if n = 10, a = 4, b is in [6, 12] -> [6, 9] + [0, 2]
+        # eg if n = 10, a = 0, b is in [2, 8]
+        b = random.randrange(a+2, a+n-1)
+        print a, b
+        b = b % n
         
         # r = range(n)
         # r.remove(a)
@@ -198,10 +229,12 @@ def test_2opt():
         #     z += 1
         #     b = random.choice(range(0, a-1) + range(a+2, n))
             
-        b = random.randrange(n-3)
-        print a, b
-        if b in ((a-1) % n, a, (a+1) % n):
-            b = (b+3) % n
+        # b = random.randrange(n-3)
+        # print a, b
+        # if b in ((a-1) % n, a, (a+1) % n):
+        #     print "moving b"
+        #     b = (b+3) % n
+            
         print a, b
         a, b = sorted([a, b])
         print a, b
