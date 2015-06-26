@@ -6,7 +6,13 @@ import itertools
 
 ###################################################################
 # TSP stuff
+#
+# for general TSP (no assumption of symmetric costs)
 ###################################################################
+
+# FIXME
+
+# try 2h-opt: http://stackoverflow.com/questions/14148215/can-someone-please-explain-2-5-opt-heuristic-also-known-as-2h-opt-in-basic-ter?rq=1
 
 def swap_two(p, ab=None):
     """Swap-two just swaps any two elements of a permutation. As long as
@@ -37,14 +43,15 @@ def swap_adj(p, ab=None):
     return canonicalise(p)
 
 def two_opt(p, ab=None):
-    # FIXME need to take account of ordering -- we throw away the
-    # original ordering so we must avoid over-counting when generating
-    # these
-
     """2-opt means choosing any two non-contiguous edges ab and cd,
     chopping them, and then reconnecting (such that the result is
     still a complete tour). There are actually two ways of doing it --
-    one is the identity, and one gives a new tour."""
+    one is the identity, and one gives a new tour.
+
+    There are n ways of choosing a, then n-3 ways of choosing c, but
+    because order is unimportant between these the number of ways to
+    choose a and c is n(n-3)/2
+    """
     if ab is None:
         n = len(p)
         a = random.randrange(n)
@@ -56,44 +63,106 @@ def two_opt(p, ab=None):
     p = p[:a+1] + p[b:a:-1] + p[b+1:]
     return canonicalise(p)
 
+def twoh_opt(p, abc=None):
+    """2h-opt aka 2.5-opt. Choose AB and C, and move node C to form ACB.
+    Bentley: "Fast Algorithms for Geometric Traveling Salesman Problems"
+
+    There are n ways of choosing a and n-2 ways of choosing c, so
+    n(n-2) altogether.
+    """
+    if abc is None:
+        n = len(p)
+        a = random.randrange(n)
+        b = a+1
+        c = random.randrange(a+2, a+n) % n # c can be any node other than a or b
+    else:
+        abc = a, b, c
+    if a < c:
+        p = p[:a] + [a, c, b] + p[b+1:c] + p[c+1:]
+    else:
+        p = p[:c] + p[c+1:a] + [a, c, b] + p[b+1:]
+    return canonicalise(p)
+
 def three_opt_broad(p):
     return three_opt(p, broad=True)
 
 def three_opt(p, broad=False):
-    # FIXME need to ensure non-contiguity of the three
-    # so there are n choices for first, n-3 for second,
-    # and either n-5 or n-6 for the last (depending on whether
-    # the first two were 2 apart or more)
-    #
-    # there are only 2 ways of choosing the second edge such that it's
-    # within 2 of the first edge, and thereafter there are n-5 ways
-    # for the third
-    #
-    # there are therefore n-5 ways of choosing the second edge such
-    # that it's not within 2 of the first edge, and thereafter n-6
-    # ways for the third
-    #
-    # hence total is n * 2 * (n-5) + n * (n-5) * (n-6) = n(n-5)(n-4)
-    #
-    # but order is unimportant, so we divide by 3! = 6. eg with a
-    # 6-node tour there are just two ways to choose the three edges --
-    # either start on 0 and take every second one, or start on 1 and
-    # take every second one.
-    """In the broad sense, 3-opt means choosing any three edges ab, cd
-    and ef and chopping them, and then reconnecting (such that the
-    result is still a complete tour). There are eight ways of doing
-    it. One is the identity, 3 are 2-opt moves (because either ab, cd,
-    or ef is reconnected), and 4 are 3-opt moves (in the narrower
-    sense)."""
+    """In the broad sense, 3-opt means choosing any three non-contiguous
+    edges ab, cd and ef and chopping them, and then reconnecting (such
+    that the result is still a complete tour).
+
+    There are n choices for the first edge.
+
+    For the second edge, choices which touch the first edge are
+    disallowed. There are 2 ways of choosing the second edge such that
+    it's within 2 of the first edge, and thereafter there are n-5 ways
+    for the third.
+    
+    There are n-5 ways of choosing the second edge such that it's
+    *not* within 2 of the first edge, and thereafter n-6 ways for the
+    third.
+    
+    Hence the total number of choices of ab cd ef is n*2*(n-5) +
+    n*(n-5)*(n-6). But the order of a, c, e is unimportant, so we
+    divide by 3! = 6, so the expression is n(n-4)(n-5)/6.
+
+    Eg with a 6-node tour there are just two ways to choose the three
+    edges -- either start on 0 and take every second one, or start on
+    1 and take every second one. We use a special case for this
+    because otherwise the wrong choice of c makes no choice of e
+    valid. 
+
+    Given the choice of ab cd ef, there are eight ways of
+    reconnecting. One is the identity, 3 are 2-opt moves (because
+    either ab, cd, or ef is reconnected), and 4 are 3-opt moves (in
+    the narrower sense).
+
+    Therefore I think the total number of options, all equally
+    probable, is 2n(n-4)(n-5)/3!
+
+    """
     n = len(p)
-    # choose 3 unique edges defined by their first node
-    a, c, e = random.sample(range(n+1), 3)
-    # without loss of generality, sort
-    a, c, e = sorted([a, c, e])
-    b, d, f = a+1, c+1, e+1
+    
+    # choose 3 unique non-contiguous edges defined by their first node
+    if n <= 5:
+        raise ValueError
+    elif n == 6:
+        a = random.randrange(2)
+        b, c, d, e, f = range(a+1, a+6)
+    else:
+
+        # FIXME this still isn't right
+        a = random.randrange(n)
+        c = random.randrange(a+2, a+n-1) % n
+        print "a, c", a, c
+        r = range(n)
+        r.remove((a-1) % n)
+        r.remove(a)
+        r.remove((a+1) % n)
+        print (c-1)%n, r
+        try:
+            r.remove((c-1) % n)
+        except:
+            print "failed to remove", (c-1)%n
+        print c, r
+        r.remove(c)
+        print (c+1)%n, r
+        try:
+            r.remove((c+1) % n)
+        except:
+            print "failed to remove", (c+1)%n
+        print r
+        e = random.choice(r)
+
+        a, c, e = sorted([a, c, e])
+        b = (a+1) % n
+        d = (c+1) % n
+        f = (e+1) % n
+
+    print "abcdef", a, b, c, d, e, f
 
     if broad == True:
-        which = random.randint(0, 7) # allow any of the 8
+        which = random.choice([1, 2, 3, 4, 5, 6, 7]) # allow any of the 2-opt or 3-opt
     else:
         which = random.choice([3, 4, 5, 6]) # allow only strict 3-opt
 
@@ -121,18 +190,13 @@ def three_opt(p, broad=False):
     return canonicalise(sol)
 
 def canonicalise(p):
-    """In any TSP, 01234 is equivalent to 23410. We canonicalise on
-    the former. In a symmetric TSP, 01234 is equivalent to 04321. We
-    canonicalise on the former. The general recipe is: p[0] is 0, and
-    p[1] is the smaller of p[1]'s neighbours (so p[-1] is the
-    larger)."""
+    """In any TSP, 01234 is equivalent to 23401. We canonicalise on the
+    former. In a symmetric TSP, 01234 is equivalent to 04321. This
+    code is for a non-symmetric TSP. """
     if p[0] != 0:
         i = p.index(0)
         p[:] = p[i:] + p[:i]
-    if p[1] > p[-1]:
-        p[1:] = p[-1:0:-1]
     return p
-
 
 def tsp_tours(n):
     """Generate all tours of length n. A tour is a permutation. But we
@@ -194,55 +258,13 @@ def tsp_tm_wrapper(dirname, move="2opt"):
     outfilename = dirname + "/KendallTau.dat"
     np.savetxt(outfilename, kt)
 
-#
-# end of TSP stuff
-#######################################################
-
-
-def test_2opt():
-    n = 10
+def test_op(op):
+    n = 7
     m = 100000
-    x = y = z = 0
     for i in range(m):
-        a = random.randrange(n)
 
-        # eg if n = 10, a = 4, b is in [6, 12] -> [6, 9] + [0, 2]
-        # eg if n = 10, a = 0, b is in [2, 8]
-        b = random.randrange(a+2, a+n-1)
-        print a, b
-        b = b % n
-        
-        # r = range(n)
-        # r.remove(a)
-        # r.remove((a+1) % n)
-        # r.remove((a-1) % n)
-        # print r
-        # b = random.choice(r)
+        p = range(n)
+        p = op(p)
+        yield tuple(p)
 
-        # if a == 0:
-        #     x += 1
-        #     b = random.randrange(2, n-1)
-        # elif a == n-1:
-        #     y += 1
-        #     b = random.randrange(1, n-2)
-        # else:
-        #     z += 1
-        #     b = random.choice(range(0, a-1) + range(a+2, n))
-            
-        # b = random.randrange(n-3)
-        # print a, b
-        # if b in ((a-1) % n, a, (a+1) % n):
-        #     print "moving b"
-        #     b = (b+3) % n
-            
-        print a, b
-        a, b = sorted([a, b])
-        print a, b
-        print
-        yield (a, b)
-    print float(x) / m, float(y) / m, float(z) / m
-    c = n * (n-3) / 2
-    print c
-    print m / float(c)
-
-print collections.Counter(test_2opt()).most_common(35)
+print collections.Counter(test_op(three_opt)).most_common(35)
