@@ -87,9 +87,6 @@ def twoh_opt(p, abc=None):
         del p[c]
     return canonicalise(p)
 
-def three_opt_broad(p):
-    return three_opt(p, broad=True)
-
 def three_opt(p, broad=False):
     """In the broad sense, 3-opt means choosing any three non-contiguous
     edges ab, cd and ef and chopping them, and then reconnecting (such
@@ -107,14 +104,15 @@ def three_opt(p, broad=False):
     third.
     
     Hence the total number of choices of ab cd ef is n*2*(n-5) +
-    n*(n-5)*(n-6). But the order of a, c, e is unimportant, so we
-    divide by 3! = 6, so the expression is n(n-4)(n-5)/6.
+    n*(n-5)*(n-6) = n(n-4)(n-5). But the order of a, c, e is
+    unimportant, so we divide by 3! = 6, so the expression is
+    n(n-4)(n-5)/6.
 
     Eg with a 6-node tour there are just two ways to choose the three
     edges -- either start on 0 and take every second one, or start on
-    1 and take every second one. We use a special case for this
-    because otherwise the wrong choice of c makes no choice of e
-    valid. 
+    1 and take every second one. We use a special case for this 6-node
+    case because otherwise the wrong choice of c makes no choice of e
+    valid.
 
     Given the choice of ab cd ef, there are eight ways of
     reconnecting. One is the identity, 3 are 2-opt moves (because
@@ -122,7 +120,7 @@ def three_opt(p, broad=False):
     the narrower sense).
 
     Therefore I think the total number of options, all equally
-    probable, is 2n(n-4)(n-5)/3!
+    probable, is 7n(n-4)(n-5)/3!
 
     """
     n = len(p)
@@ -135,10 +133,36 @@ def three_opt(p, broad=False):
         b, c, d, e, f = range(a+1, a+6)
     else:
 
+        a = 0 # we will later increment all by a random amount
+        c = random.randrange(a+2, n)
+
+        a = n + random.randrange(n)
+        c = n + random.randrange(n-3)
+        if c in (a-1, a, a+1):
+            c += 3
+        if c in (a-2, a+2):
+            # a and c are as near as possible
+            e = random.randrange(n-5)
+            if e in ((a-1)%n, a, (a+1)%n, (c-1)%n, c, (c+1)%n):
+                
+        else:
+            e = random.randrange(n-6)
+
         # FIXME this still isn't right
         a = random.randrange(n)
         c = random.randrange(a+2, a+n-1) % n
+        a, c = min(a, c), max(a, c)
+        if (a + 2) % n == c:
+            # a and c are as near as possible
+            e = random.randrange(c+2, a+n-1) % n
+        else:
+            e = random.choice(range(a+2, c-1) + range(c+1, a+n-1)) % n
+
+
+            
         print "a, c", a, c
+        if abs(a - (c%n)) == 2:
+            e = random.randrange(c+2, a+n-1) % n
         r = range(n)
         r.remove((a-1) % n)
         r.remove(a)
@@ -192,6 +216,9 @@ def three_opt(p, broad=False):
         sol = p[:a+1] + p[e:d-1:-1] + p[c:b-1:-1] + p[f:] # 2-opt
 
     return canonicalise(sol)
+
+def three_opt_broad(p):
+    return three_opt(p, broad=True)
 
 def canonicalise(p):
     """In any TSP, 01234 is equivalent to 23401. We canonicalise on the
