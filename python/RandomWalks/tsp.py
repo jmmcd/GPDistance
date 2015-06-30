@@ -10,9 +10,6 @@ import itertools
 # for general TSP (no assumption of symmetric costs)
 ###################################################################
 
-# FIXME
-
-# try 2h-opt: http://stackoverflow.com/questions/14148215/can-someone-please-explain-2-5-opt-heuristic-also-known-as-2h-opt-in-basic-ter?rq=1
 
 def swap_two(p, ab=None):
     """Swap-two just swaps any two elements of a permutation. As long as
@@ -68,19 +65,26 @@ def twoh_opt(p, abc=None):
     Bentley: "Fast Algorithms for Geometric Traveling Salesman Problems"
 
     There are n ways of choosing a and n-2 ways of choosing c, so
-    n(n-2) altogether.
+    n(n-2) altogether. But some of these turn out to be equivalent, eg
+    (0, 1, 2, 3, 4). Choose A=2, C=1, get (0, 2, 1, 3, 4). Choose A=0,
+    C=2, again get (0, 2, 1, 3, 4). But there's only one way to get
+    (0, 2, 3, 1, 4). Hence some neighbours are more likely than
+    others.
+
     """
     if abc is None:
         n = len(p)
         a = random.randrange(n)
-        b = a+1
+        b = (a+1) % n
         c = random.randrange(a+2, a+n) % n # c can be any node other than a or b
     else:
-        abc = a, b, c
+        a, b, c = abc
+    p = p[:]
+    p.insert(a+1, p[c])
     if a < c:
-        p = p[:a] + [a, c, b] + p[b+1:c] + p[c+1:]
+        del p[c+1]
     else:
-        p = p[:c] + p[c+1:a] + [a, c, b] + p[b+1:]
+        del p[c]
     return canonicalise(p)
 
 def three_opt_broad(p):
@@ -267,4 +271,5 @@ def test_op(op):
         p = op(p)
         yield tuple(p)
 
-print collections.Counter(test_op(three_opt)).most_common(35)
+print collections.Counter(test_op(twoh_opt)).most_common(100)
+
