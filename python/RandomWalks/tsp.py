@@ -87,6 +87,107 @@ def twoh_opt(p, abc=None):
         del p[c]
     return canonicalise(p)
 
+def _three_opt_choose_edges_unused(n):
+    """Choose 3 unique non-contiguous edges defined by their first
+    node. This method should not be used, because it does not give a
+    uniform sampling of the possible triples.
+
+    """
+    if n <= 5:
+        raise ValueError
+    elif n == 6:
+        a = random.randrange(2)
+        b, c, d, e, f = a+1, a+2, a+3, a+4, (a+5)%n
+    else:
+
+        a = random.randrange(n)
+        c = random.randrange(a+2, a+n-1) % n
+        
+        a, c = min(a, c), max(a, c) # now a < c, so a < n-2 and c > 2
+
+        minv = 0
+        maxv = n-1
+        if a == 0:
+            maxv = n-2
+        if c == n-1:
+            minv = 1
+        e = random.choice(range(minv, a-1) + range(a+2, c-1) + range(c+2, maxv+1))
+
+        a, c, e = sorted([a, c, e])
+        b = a+1
+        d = c+1
+        f = (e+1)%n
+
+        assert len(set([a, b, c, d, e, f])) == 6
+
+        return a, b, c, d, e, f
+
+
+def _three_opt_choose_edges_iter(n):
+    """Choose 3 unique non-contiguous edges defined by their first node.
+    This iterator yields each possible triple in turn."""
+    for a in range(n-4):
+        for c in range(a+2, n-2):
+            if a == 0:
+                max_e = n-2
+            else:
+                max_e = n-1
+            for e in range(c+2, max_e+1):
+                yield a, a+1, c, c+1, e, (e+1)%n
+                
+def _three_opt_choose_edges(n):
+    """Choose 3 unique non-contiguous edges defined by their first node.
+    This function chooses a random triple, uniformly sampled."""
+    a = random.randrange(n-4)
+    c = random.randrange(a+2, n-2)
+    if a == 0:
+        max_e = n-2
+    else:
+        max_e = n-1
+    e = random.randrange(c+2, max_e+1)
+    return (a, a+1, c, c+1, e, (e+1)%n)
+    
+def _three_opt_iter(n):
+    """Choose 3 unique non-contiguous edges defined by their first node.
+    This iterator yields each possible triple in turn, but there will
+    be duplicates, so it should not be used."""
+    for _a in range(n):
+        for _c in range(_a+2, n):
+            a = _a
+            c = _c % n
+            a, c = min(a, c), max(a, c) # now a < c, so a < n-2 and c > 2
+            
+            minv = 0
+            maxv = n-1
+            if a == 0:
+                maxv = n-2
+            if c == n-1:
+                minv = 1
+
+            r = range(minv, a-1) + range(a+2, c-1) + range(c+2, maxv+1)
+            for e in r:
+
+                b = a+1
+                d = c+1
+                f = (e+1)%n
+
+                assert len(set([a, b, c, d, e, f])) == 6
+
+                yield sorted([a, b, c, d, e, f])
+            
+def three_opt_n_triples(n):
+    return n * (n-4) * (n-5) / 6
+
+def three_opt_n_neighbours(n, broad=False):
+    # see below for workings
+    # note that either (n-4) or (n-5) is divisible by 2
+    # and one of n, (n-4) or (n-5) is divisible by 3
+    # hence dividing by 6 guarantees an integer result
+    if broad:
+        return 7 * n * (n-4) * (n-5) / 6
+    else:
+        return 4 * n * (n-4) * (n-5) / 6
+    
 def three_opt(p, broad=False):
     """In the broad sense, 3-opt means choosing any three non-contiguous
     edges ab, cd and ef and chopping them, and then reconnecting (such
@@ -106,7 +207,8 @@ def three_opt(p, broad=False):
     Hence the total number of choices of ab cd ef is n*2*(n-5) +
     n*(n-5)*(n-6) = n(n-4)(n-5). But the order of a, c, e is
     unimportant, so we divide by 3! = 6, so the expression is
-    n(n-4)(n-5)/6.
+    n(n-4)(n-5)/6. Eg for n=6 we have 2; for n=7 we have 7; for n = 8
+    we have 16; for n = 9 we have 30; for n=10, we have 50 choices.
 
     Eg with a 6-node tour there are just two ways to choose the three
     edges -- either start on 0 and take every second one, or start on
@@ -114,107 +216,72 @@ def three_opt(p, broad=False):
     case because otherwise the wrong choice of c makes no choice of e
     valid.
 
+    Another way to think of it: without loss of generality we can
+    assume a < c < e, so we have (n-4) choices for a and then (n-2-a)
+    choices for c, and then either (n-c) or (n-c-1) choices for
+    e. This is the idea we actually use to generate.
+
+    Another way to think of it: how many "interior" triangles are
+    there in the cycle? An interior triangle is one which does not
+    share an edge with the cycle. An interior triangle is specified by
+    three unique non-adjacent nodes.
+
+    See https://oeis.org/A005581
+
     Given the choice of ab cd ef, there are eight ways of
     reconnecting. One is the identity, 3 are 2-opt moves (because
     either ab, cd, or ef is reconnected), and 4 are 3-opt moves (in
     the narrower sense).
 
-    Therefore I think the total number of options, all equally
-    probable, is 7n(n-4)(n-5)/3!
+    Therefore the number of options, all equally probable, is
+    7n(n-4)(n-5)/6 (for broad interpretation) or 4n(n-4)(n-5)/6 (for
+    strict interpretation).
 
     """
     n = len(p)
-    
-    # choose 3 unique non-contiguous edges defined by their first node
-    if n <= 5:
-        raise ValueError
-    elif n == 6:
-        a = random.randrange(2)
-        b, c, d, e, f = range(a+1, a+6)
-    else:
 
-        a = 0 # we will later increment all by a random amount
-        c = random.randrange(a+2, n)
-
-        a = n + random.randrange(n)
-        c = n + random.randrange(n-3)
-        if c in (a-1, a, a+1):
-            c += 3
-        if c in (a-2, a+2):
-            # a and c are as near as possible
-            e = random.randrange(n-5)
-            if e in ((a-1)%n, a, (a+1)%n, (c-1)%n, c, (c+1)%n):
-                
-        else:
-            e = random.randrange(n-6)
-
-        # FIXME this still isn't right
-        a = random.randrange(n)
-        c = random.randrange(a+2, a+n-1) % n
-        a, c = min(a, c), max(a, c)
-        if (a + 2) % n == c:
-            # a and c are as near as possible
-            e = random.randrange(c+2, a+n-1) % n
-        else:
-            e = random.choice(range(a+2, c-1) + range(c+1, a+n-1)) % n
-
-
-            
-        print "a, c", a, c
-        if abs(a - (c%n)) == 2:
-            e = random.randrange(c+2, a+n-1) % n
-        r = range(n)
-        r.remove((a-1) % n)
-        r.remove(a)
-        r.remove((a+1) % n)
-        print (c-1)%n, r
-        try:
-            r.remove((c-1) % n)
-        except:
-            print "failed to remove", (c-1)%n
-        print c, r
-        r.remove(c)
-        print (c+1)%n, r
-        try:
-            r.remove((c+1) % n)
-        except:
-            print "failed to remove", (c+1)%n
-        print r
-        e = random.choice(r)
-
-        a, c, e = sorted([a, c, e])
-        b = (a+1) % n
-        d = (c+1) % n
-        f = (e+1) % n
-
-    print "abcdef", a, b, c, d, e, f
+    # choose 3 unique non-contiguous edges
+    # this will be inefficient for larger n
+    a, b, c, d, e, f = random.choice(list(_three_opt_choose_edges_iter(n)))
 
     if broad == True:
-        which = random.choice([1, 2, 3, 4, 5, 6, 7]) # allow any of the 2-opt or 3-opt
+        # allow any of the 2-opt or 3-opt
+        which = random.choice([1, 2, 3, 4, 5, 6, 7]) 
     else:
-        which = random.choice([3, 4, 5, 6]) # allow only strict 3-opt
-
+        # allow only strict 3-opt
+        which = random.choice([3, 4, 5, 6])
+        
     # in the following slices, the nodes abcdef are referred to by
     # name. x:y:-1 means step backwards. anything like c+1 or d-1
     # refers to c or d, but to include the item itself, we use the +1
     # or -1 in the slice
-    if which == 0:
-        sol = p[:a+1] + p[b:c+1]    + p[d:e+1]    + p[f:] # identity
-    elif which == 1:
-        sol = p[:a+1] + p[b:c+1]    + p[e:d-1:-1] + p[f:] # 2-opt
-    elif which == 2:
-        sol = p[:a+1] + p[c:b-1:-1] + p[d:e+1]    + p[f:] # 2-opt
-    elif which == 3:
-        sol = p[:a+1] + p[c:b-1:-1] + p[e:d-1:-1] + p[f:] # 3-opt
-    elif which == 4:
-        sol = p[:a+1] + p[d:e+1]    + p[b:c+1]    + p[f:] # 3-opt
-    elif which == 5:
-        sol = p[:a+1] + p[d:e+1]    + p[c:b-1:-1] + p[f:] # 3-opt
-    elif which == 6:
-        sol = p[:a+1] + p[e:d-1:-1] + p[b:c+1]    + p[f:] # 3-opt
-    elif which == 7:
-        sol = p[:a+1] + p[e:d-1:-1] + p[c:b-1:-1] + p[f:] # 2-opt
 
+    if f == 0:
+        minv = 1
+        maxv = 0
+    else:
+        minv = 0
+        maxv = n-1
+    if which == 0:
+        sol = p[minv:a+1] + p[b:c+1]    + p[d:e+1]    + p[f:maxv+1] # identity
+    elif which == 1:
+        sol = p[minv:a+1] + p[b:c+1]    + p[e:d-1:-1] + p[f:maxv+1] # 2-opt
+    elif which == 2:
+        sol = p[minv:a+1] + p[c:b-1:-1] + p[d:e+1]    + p[f:maxv+1] # 2-opt
+    elif which == 3:
+        sol = p[minv:a+1] + p[c:b-1:-1] + p[e:d-1:-1] + p[f:maxv+1] # 3-opt
+    elif which == 4:
+        sol = p[minv:a+1] + p[d:e+1]    + p[b:c+1]    + p[f:maxv+1] # 3-opt
+    elif which == 5:
+        sol = p[minv:a+1] + p[d:e+1]    + p[c:b-1:-1] + p[f:maxv+1] # 3-opt
+    elif which == 6:
+        sol = p[minv:a+1] + p[e:d-1:-1] + p[b:c+1]    + p[f:maxv+1] # 3-opt
+    elif which == 7:
+        sol = p[minv:a+1] + p[e:d-1:-1] + p[c:b-1:-1] + p[f:maxv+1] # 2-opt
+
+    if len(sol) != n:
+        print "bad length:", sol
+        raise
     return canonicalise(sol)
 
 def three_opt_broad(p):
@@ -290,7 +357,7 @@ def tsp_tm_wrapper(dirname, move="2opt"):
     np.savetxt(outfilename, kt)
 
 def test_op(op):
-    n = 7
+    n = 8
     m = 100000
     for i in range(m):
 
@@ -298,5 +365,7 @@ def test_op(op):
         p = op(p)
         yield tuple(p)
 
-print collections.Counter(test_op(twoh_opt)).most_common(100)
+c = collections.Counter(test_op(three_opt))
+print c.most_common(100)
+print len(c.most_common(100))
 
