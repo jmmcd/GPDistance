@@ -3,6 +3,8 @@
 import random
 import collections
 import itertools
+import numpy as np
+import scipy.stats, scipy.misc
 
 ###################################################################
 # TSP stuff
@@ -187,6 +189,48 @@ def three_opt_n_neighbours(n, broad=False):
         return 7 * n * (n-4) * (n-5) / 6
     else:
         return 4 * n * (n-4) * (n-5) / 6
+
+def three_opt_deterministic(p, abcdef, which):
+    """Given the edges ab cd and ef to cut, and a choice of which of them
+    to reconnect, carry out the cut and reconnection.
+
+    """
+    n = len(p)
+    
+    a, b, c, d, e, f = abcdef
+    
+    # in the following slices, the nodes abcdef are referred to by
+    # name. x:y:-1 means step backwards. anything like c+1 or d-1
+    # refers to c or d, but to include the item itself, we use the +1
+    # or -1 in the slice
+
+    if f == 0:
+        minv = 1
+        maxv = 0
+    else:
+        minv = 0
+        maxv = n-1
+    if which == 0:
+        sol = p[minv:a+1] + p[b:c+1]    + p[d:e+1]    + p[f:maxv+1] # identity
+    elif which == 1:
+        sol = p[minv:a+1] + p[b:c+1]    + p[e:d-1:-1] + p[f:maxv+1] # 2-opt
+    elif which == 2:
+        sol = p[minv:a+1] + p[c:b-1:-1] + p[d:e+1]    + p[f:maxv+1] # 2-opt
+    elif which == 3:
+        sol = p[minv:a+1] + p[c:b-1:-1] + p[e:d-1:-1] + p[f:maxv+1] # 3-opt
+    elif which == 4:
+        sol = p[minv:a+1] + p[d:e+1]    + p[b:c+1]    + p[f:maxv+1] # 3-opt
+    elif which == 5:
+        sol = p[minv:a+1] + p[d:e+1]    + p[c:b-1:-1] + p[f:maxv+1] # 3-opt
+    elif which == 6:
+        sol = p[minv:a+1] + p[e:d-1:-1] + p[b:c+1]    + p[f:maxv+1] # 3-opt
+    elif which == 7:
+        sol = p[minv:a+1] + p[e:d-1:-1] + p[c:b-1:-1] + p[f:maxv+1] # 2-opt
+
+    if len(sol) != n:
+        print "bad length:", sol
+        raise
+    return canonicalise(sol)
     
 def three_opt(p, broad=False):
     """In the broad sense, 3-opt means choosing any three non-contiguous
@@ -250,39 +294,8 @@ def three_opt(p, broad=False):
     else:
         # allow only strict 3-opt
         which = random.choice([3, 4, 5, 6])
-        
-    # in the following slices, the nodes abcdef are referred to by
-    # name. x:y:-1 means step backwards. anything like c+1 or d-1
-    # refers to c or d, but to include the item itself, we use the +1
-    # or -1 in the slice
 
-    if f == 0:
-        minv = 1
-        maxv = 0
-    else:
-        minv = 0
-        maxv = n-1
-    if which == 0:
-        sol = p[minv:a+1] + p[b:c+1]    + p[d:e+1]    + p[f:maxv+1] # identity
-    elif which == 1:
-        sol = p[minv:a+1] + p[b:c+1]    + p[e:d-1:-1] + p[f:maxv+1] # 2-opt
-    elif which == 2:
-        sol = p[minv:a+1] + p[c:b-1:-1] + p[d:e+1]    + p[f:maxv+1] # 2-opt
-    elif which == 3:
-        sol = p[minv:a+1] + p[c:b-1:-1] + p[e:d-1:-1] + p[f:maxv+1] # 3-opt
-    elif which == 4:
-        sol = p[minv:a+1] + p[d:e+1]    + p[b:c+1]    + p[f:maxv+1] # 3-opt
-    elif which == 5:
-        sol = p[minv:a+1] + p[d:e+1]    + p[c:b-1:-1] + p[f:maxv+1] # 3-opt
-    elif which == 6:
-        sol = p[minv:a+1] + p[e:d-1:-1] + p[b:c+1]    + p[f:maxv+1] # 3-opt
-    elif which == 7:
-        sol = p[minv:a+1] + p[e:d-1:-1] + p[c:b-1:-1] + p[f:maxv+1] # 2-opt
-
-    if len(sol) != n:
-        print "bad length:", sol
-        raise
-    return canonicalise(sol)
+    return three_opt_deterministic(p, (a, b, c, d, e, f), which)
 
 def three_opt_broad(p):
     return three_opt(p, broad=True)
@@ -301,19 +314,68 @@ def tsp_tours(n):
     canonicalise as above."""
     for p in itertools.permutations(range(n)):
         if p[0] != 0: continue
-        if p[1] > p[-1]: continue
-        yield p
+        yield list(p)
 
-def sample_transitions(n, move="2opt", nsamples=10000):
+def get_tm(n, move="two_opt"):
+    tours = list(tsp_tours(n))
+    length = len(tours)
+    tm = np.zeros((length, length))
+    for i, tour in enumerate(tours):
+        neighbours = list(get_neighbours(tour, move))
+        n_neighbours = len(neighbours)
+        for neighb in neighbours:
+            j = tours.index(neighb)
+            tm[i][j] += 1.0 / n_neighbours
+    return tm
+            
+    
+def get_neighbours(t, move):
+    """Iterate through all possible neighbours using the given type of move."""
+    n = len(t)
+    if move == "two_opt":
+        for a in range(n):
+            # b=a-1, b=a, and b=a+1 are invalid
+            for b in range(a+2, a+n-1):
+                b = b % n
+                _a, _b = min(a, b), max(a, b)
+                yield two_opt(t, (_a, _b))
+    elif move == "twoh_opt":
+        for a in range(n):
+            b = (a+1) % n
+            # c can be any node other than a or b
+            for c in range(a+2, a+n):
+                c = c % n 
+                yield twoh_opt(t, (a, b, c))
+    elif move == "swap":
+        for a in range(n):
+            for b in range(a+1, n):
+                yield swap_two(t, (a, b))
+    elif move == "swap_adj":
+        for a in range(n):
+            b = (a+1) % n
+            yield swap_adj(t, (a, b))
+    elif move == "three_opt":
+        for triple in _three_opt_choose_edges_iter(n):
+            for which in [3, 4, 5, 6]:
+                yield three_opt_deterministic(t, triple, which)
+    elif move == "three_opt_broad":
+        for triple in _three_opt_choose_edges_iter(n):
+            for which in [1, 2, 3, 4, 5, 6, 7]:
+                yield three_opt_deterministic(t, triple, which)
+    else:
+        raise ValueError("Unknown move " + move)
+
+
+def sample_transitions(n, move="two_opt", nsamples=10000):
     length = len(list(tsp_tours(n)))
     tm = np.zeros((length, length))
     delta = 1.0 / nsamples
 
-    if move == "3opt":
+    if move == "three_opt":
         move = three_opt
-    elif move == "3opt_broad":
+    elif move == "three_opt_broad":
         move = three_opt_broad
-    elif move == "2opt":
+    elif move == "two_opt":
         move = two_opt
     elif move == "swap":
         move = swap_two
@@ -344,12 +406,13 @@ def kendall_tau_permutation_distances(n):
             kt[i][j] = kendall_tau_permutation_distance(ti, tj)
     return kt
 
-def tsp_tm_wrapper(dirname, move="2opt"):
+def tsp_tm_wrapper(dirname, move="two_opt"):
     # dirname should be <dir>/tsp_length_6_2opt, for example
     t = dirname.find("tsp_length_")
     length = dirname[t:].split("_")[2]
     length = int(length)
-    tm = sample_transitions(length, move)
+    tm = get_tm(length, move)
+    print tm
     outfilename = dirname + "/TP.dat"
     np.savetxt(outfilename, tm)
     kt = kendall_tau_permutation_distances(length)
@@ -365,7 +428,11 @@ def test_op(op):
         p = op(p)
         yield tuple(p)
 
-c = collections.Counter(test_op(three_opt))
-print c.most_common(100)
-print len(c.most_common(100))
+if __name__ == "__main__":
+    # c = collections.Counter(test_op(three_opt))
+    # print c.most_common(100)
+    # print len(c.most_common(100))
 
+    print len(list(tsp_tours(6)))
+    print len(list(tsp_tours(7)))
+    print len(list(tsp_tours(8)))

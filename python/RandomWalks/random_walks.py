@@ -673,11 +673,13 @@ if __name__ == "__main__":
         generate_oz_tm_mfpte(dirname)
     elif "tsp" in dirname:
         if "2opt" in dirname:
-            tsp.tsp_tm_wrapper(dirname, move="2opt")
+            tsp.tsp_tm_wrapper(dirname, move="two_opt")
+        elif "2hopt" in dirname:
+            tsp.tsp_tm_wrapper(dirname, move="twoh_opt")
         elif "3opt_broad" in dirname:
-            tsp.tsp_tm_wrapper(dirname, move="3opt_broad")
+            tsp.tsp_tm_wrapper(dirname, move="three_opt_broad")
         elif "3opt" in dirname:
-            tsp.tsp_tm_wrapper(dirname, move="3opt")
+            tsp.tsp_tm_wrapper(dirname, move="three_opt")
         elif "swap_adj" in dirname:
             tsp.tsp_tm_wrapper(dirname, move="swap_adj")
         elif "swap" in dirname:
