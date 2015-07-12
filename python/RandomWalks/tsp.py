@@ -5,6 +5,7 @@ import collections
 import itertools
 import numpy as np
 import scipy.stats, scipy.misc
+import math
 
 ###################################################################
 # TSP stuff
@@ -327,7 +328,19 @@ def get_tm(n, move="two_opt"):
             j = tours.index(neighb)
             tm[i][j] += 1.0 / n_neighbours
     return tm
-            
+
+def get_tm_first_row(n, move="two_opt"):
+    tours = list(tsp_tours(n))
+    length = len(tours)
+    tm = np.zeros((length,))
+    tour = tours[0]
+    neighbours = list(get_neighbours(tour, move))
+    n_neighbours = len(neighbours)
+    for neighb in neighbours:
+        i = tours.index(neighb)
+        tm[i] += 1.0 / n_neighbours
+    return tm
+    
     
 def get_neighbours(t, move):
     """Iterate through all possible neighbours using the given type of move."""
@@ -419,6 +432,10 @@ def tsp_tm_wrapper(dirname, move="two_opt"):
     outfilename = dirname + "/KendallTau.dat"
     np.savetxt(outfilename, kt)
 
+def count_permutations(n):
+    # we canonicalise on starting at 0, so there are (n-1)! tours
+    return math.factorial(n-1)
+
 def test_op(op):
     n = 8
     m = 100000
@@ -427,6 +444,8 @@ def test_op(op):
         p = range(n)
         p = op(p)
         yield tuple(p)
+
+
 
 if __name__ == "__main__":
     # c = collections.Counter(test_op(three_opt))

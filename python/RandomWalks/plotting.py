@@ -13,7 +13,8 @@ from math import *
 import random
 import scipy.stats
 import scipy.stats.mstats
-from random_walks import set_self_transition_zero, map_infinity_to_large, tsp_tours
+from random_walks import set_self_transition_zero, map_infinity_to_large
+from tsp import tsp_tours
 
 # MAXTICKS is 1000 in IndexLocator
 class MyLocator(mpl.ticker.IndexLocator):
