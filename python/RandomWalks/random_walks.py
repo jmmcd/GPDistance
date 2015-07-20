@@ -561,7 +561,19 @@ def mu_sigma(t):
     sigma = np.std(t, 1)
     return np.mean(sigma), np.std(sigma)
 
+def coefficient_of_variation(r):
+    """Calculate coefficient of variation for a row (r) of the transition
+    matrix. CV = SD/M, where SD is the standard deviation and M the mean
+    of the row. In our case the mean transition probability is 1/N so CV = N.SD."""
+
+    return len(r) * np.std(r)
+
+def mu_sigma_cv(t):
+    return (np.mean([coefficient_of_variation(r) for r in t]),
+            np.std([coefficient_of_variation(r) for r in t]))
+
 def gini_coeff(x):
+
     """A measure of inequality in a distribution. From
     http://www.ellipsix.net/blog/2012/11/the-gini-coefficient-for-distribution-inequality.html"""
     # requires all values in x to be zero or positive numbers,
@@ -572,7 +584,7 @@ def gini_coeff(x):
     return 1 - (2.0 * (r*x).sum() + s)/(n*s)
 
 def mean_gini_coeff(t):
-    return np.mean(gini_coeff(ti) for ti in t)
+    return np.mean([gini_coeff(ti) for ti in t])
 
 def mu_sigma_GINI(t):
     GINI = np.array([gini_coeff(ti) for ti in t])

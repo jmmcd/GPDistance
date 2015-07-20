@@ -359,7 +359,7 @@ def get_neighbours(t, move):
             for c in range(a+2, a+n):
                 c = c % n 
                 yield twoh_opt(t, (a, b, c))
-    elif move == "swap":
+    elif move == "swap_two":
         for a in range(n):
             for b in range(a+1, n):
                 yield swap_two(t, (a, b))
@@ -390,7 +390,7 @@ def sample_transitions(n, move="two_opt", nsamples=10000):
         move = three_opt_broad
     elif move == "two_opt":
         move = two_opt
-    elif move == "swap":
+    elif move == "swap_two":
         move = swap_two
     elif move == "swap_adj":
         move = swap_adj

@@ -37,7 +37,7 @@ def operator_difference_and_compound_experiment():
 
     """
     
-    opss = ("two_opt", "twoh_opt", "three_opt", "three_opt_broad", "swap", "swap_adj")
+    opss = ("two_opt", "twoh_opt", "three_opt", "three_opt_broad", "swap_two", "swap_adj")
     for n in range(6, 11):
         diff = np.zeros((len(opss), len(opss)))
         Gini = np.zeros((len(opss), len(opss)))
@@ -162,7 +162,21 @@ def walk_bitstring(n, op, nsteps):
 
 def walk_tree(n, op, nsteps):
     # call into Java for this?
-    pass
+    raise NotImplementedError()
+
+def rw_experiment_with_tp(tp):
+    N = len(tp)
+    walklen = int(math.ceil(math.sqrt(N)))
+        
+    results = []
+    fitvals = np.zeros_like(tp[0]) # don't need them for this
+    reps = 30
+    for rep in range(reps):
+        samples, fit_samples, best = random_walks.hillclimb(tp, fitvals, walklen, rw=True)
+        prop_unique = float(len(set(samples))) / len(samples)
+        results.append(prop_unique)
+    return np.mean(results), np.std(results)
+    
     
 def rw_experiment_with_op(space, n, op):
     """Proportion of unique individuals in a random walk: run many walks
@@ -172,12 +186,13 @@ def rw_experiment_with_op(space, n, op):
      more with exploitative ones
 
     """
+    if space == "tree":
+        raise NotImplementedError
+
     if space == "permutation":
         N = tsp.count_permutations(n)
     elif space == "bitstring":
         N = 2**n
-    elif space == "tree":
-        N = generate_trees.count_trees_of_depth_LE(n, vars=2, fns=4)
     walklen = int(math.ceil(math.sqrt(N)))
     print "walklen", walklen
     results = []
@@ -186,11 +201,13 @@ def rw_experiment_with_op(space, n, op):
         if space == "permutation":
             samples = walk_permutation(n, op, walklen)
         elif space == "bitstring":
-            sample = walk_bitstring(n, op, walklen)
+            samples = walk_bitstring(n, op, walklen)
         elif space == "tree":
-            sample = walk_tree(n, op, walklen)
+            raise NotImplementedError()
+
         x = float(len(set(samples))) / len(samples)
         results.append(x)
+    print "XXX", np.mean(results), np.std(results)
     return np.mean(results), np.std(results)
     
 
@@ -203,8 +220,8 @@ def write_tp_row0(space):
     
     basename = sys.argv[1]
     if space == "permutation":
-        ops = ("two_opt", "twoh_opt", "three_opt", "three_opt_broad", "swap", "swap_adj")
-        sizes = (6, 7, 8, 9, 10)
+        ops = ("two_opt", "twoh_opt", "three_opt", "three_opt_broad", "swap_two", "swap_adj")
+        sizes = (9, 10)
     elif space == "bitstring":
         ops = ("per_gene", "per_ind")
         pmuts = (0.0001, 0.0003, 0.0010, 0.0033, 0.01, 0.0333, 0.1, 0.3333)
@@ -246,16 +263,16 @@ def basic_stats_and_plots(space, do_rw_experiment=False):
     basename = sys.argv[1]
 
     if space == "permutation":
-        ops = ("two_opt", "twoh_opt", "three_opt", "three_opt_broad", "swap", "swap_adj")
+        ops = ("two_opt", "twoh_opt", "three_opt", "three_opt_broad", "swap_two", "swap_adj")
         opfs = {
             "two_opt": tsp.two_opt,
             "twoh_opt": tsp.twoh_opt,
             "three_opt": tsp.three_opt,
             "three_opt_broad": tsp.three_opt_broad,
-            "swap": tsp.swap_two,
+            "swap_two": tsp.swap_two,
             "swap_adj": tsp.swap_adj
             }
-        sizes = range(6, 11)
+        sizes = range(9, 11)
         
     elif space == "bitstring":
         ops = ("per_gene_0.0001", "per_gene_0.0003",
@@ -275,8 +292,11 @@ def basic_stats_and_plots(space, do_rw_experiment=False):
             "per_gene_0.3333": bitstring.make_bitstring_per_gene_mutation(0.3333),
             }
         sizes = (10, 12)
+    elif space == "tree" and do_rw_experiment:
+        basic_stats_and_plots_tree()
+        return
 
-        
+    prop_unique_v_sd_cv_gini = []
     for size in sizes:
         stddev = []
         coefvar = []
@@ -290,13 +310,18 @@ def basic_stats_and_plots(space, do_rw_experiment=False):
             print op, size
             x = np.genfromtxt(filename)
             # stats to get:
-            stddev.append(np.std(x))
-            coefvar.append(np.std(x)/np.mean(x))
-            gini.append(random_walks.gini_coeff(x))
+            sd = np.std(x)
+            stddev.append(sd)
+            cv = np.std(x)/np.mean(x)
+            coefvar.append(cv)
+            g = random_walks.gini_coeff(x)
+            gini.append(g)
             nneighbours.append(np.sum(x > 0))
             if do_rw_experiment:
                 mu, sigma = rw_experiment_with_op(space, size, opfs[op])
                 prop_unique.append((mu, sigma))
+                prop_unique_v_sd_cv_gini.append("%s %d %s %f %f %f %f %f" % (
+                    space, size, op, sd, cv, g, mu, sigma))
 
         basename = sys.argv[1]
 
@@ -316,7 +341,36 @@ def basic_stats_and_plots(space, do_rw_experiment=False):
             scatterplot(basename, space, size, "SD", "Prop unique", stddev, prop_unique, ops)
             scatterplot(basename, space, size, "CV", "Prop unique", coefvar, prop_unique, ops)
 
+    if do_rw_experiment:
+        filename = os.path.join(basename, "space_%s/prop_unique_v_sd_cv_gini.dat" % space)
+        open(filename, "w").write("\n".join(prop_unique_v_sd_cv_gini))
+
+def basic_stats_and_plots_tree():
+    basename = sys.argv[1]
+    filename = os.path.join(basename, "depth_2/TP.dat")
+    tp = np.genfromtxt(filename)
+
+    sd = random_walks.mu_sigma(tp)[0]
+    g = random_walks.mean_gini_coeff(tp)
+    cv = random_walks.mu_sigma_cv(tp)[0]
+    mu, sigma = rw_experiment_with_tp(tp)
+    
+    prop_unique_v_sd_cv_gini = []
+    space = "tree"
+    op = "subtree"
+    size = 2
+    
+    prop_unique_v_sd_cv_gini.append("%s %d %s %f %f %f %f %f" % (
+        space, size, op, sd, cv, g, mu, sigma))
+    filename = os.path.join(basename, "space_%s/prop_unique_v_sd_cv_gini.dat" % space)
+    open(filename, "w").write("\n".join(prop_unique_v_sd_cv_gini))
+                              
+    
+
 def scatterplot(basename, space, size, xlabel, ylabel, xs, ys, names):
+    import inspect
+    print "XXX", [locals()[arg] for arg in inspect.getargspec(scatterplot).args]
+    
     names = map(lambda s: s.replace("_", " "), names)
     fig = plt.figure(figsize=(6, 4.5))
     ax = fig.add_subplot(111)
@@ -324,11 +378,14 @@ def scatterplot(basename, space, size, xlabel, ylabel, xs, ys, names):
     ax.set_ylabel(ylabel)
     if ylabel == "Prop unique":
         ys = np.array(ys)
+        #plt.scatter(xs, ys[:,0], s=40)
         ax.errorbar(xs, ys[:,0], yerr=ys[:,1], fmt='o')
+        annotate_ys = ys[:,1]
     else:
         plt.scatter(xs, ys, s=40)
+        annotate_ys = ys
     # ax.set_xlim((0.999, 1.0002))
-    for label, x, y in zip(names, xs, ys):
+    for label, x, y in zip(names, xs, annotate_ys):
         plt.annotate(
             label, 
             xy = (x, y), xytext = (-10, 0),
@@ -367,12 +424,49 @@ def barchart(basename, space, size, ylabel, y, names):
     del ax
     del fig
 
+def plot_prop_unique_v_sd_cv_gini(spaces):
+    plt.rcParams['legend.loc'] = 'best'
+    for name, column in zip(["SD", "CV", "Gini"], [3, 4, 5]):
+        basedir = sys.argv[1]
+        fig = plt.figure(figsize=(6, 4.5))
+        ax = fig.add_subplot(111)
+        for space, sym, colour in zip(spaces, ("s", "o", "^"),
+                              ["blue", "green", "red"]):
+            x = np.genfromtxt(os.path.join(basedir,
+                                           "space_"+space,
+                                           "prop_unique_v_sd_cv_gini.dat"),
+                              delimiter=" ").T
+            plt.scatter(x[column], x[6], s=50, marker=sym, label=space, c=colour,
+                        alpha=0.7)
+        if name == "Gini":
+            loc = 3 # lower left
+        elif name == "CV":
+            loc = 4 # lower right
+        else:
+            loc = 1
+        plt.legend(loc=loc)
+        plt.xlabel(name)
+        plt.ylabel("Prop unique")
+        filename = "%s/prop_unique_v_%s" % (basedir, name.lower())
+        plt.savefig(filename+".pdf")
+        plt.savefig(filename+".eps")
+        fig.clear()
+        del ax
+        del fig
+    
+        
+        
 
 if __name__ == "__main__":
-    spaces = ("bitstring", "permutation")
-    spaces = ("bitstring",)
+    spaces = ("bitstring", "permutation", "tree")
+    # spaces = ("permutation", "bitstring")
+    # spaces = ("tree",)
     for space in spaces:
-        write_tp_row0(space)
-        basic_stats_and_plots(space)
-        if space == "permutation":
-            operator_difference_and_compound_experiment()
+        # if space != "tree":
+        #     write_tp_row0(space)
+        # basic_stats_and_plots(space, True)
+        # if space == "permutation":
+        #     operator_difference_and_compound_experiment()
+        pass
+    
+    plot_prop_unique_v_sd_cv_gini(spaces)
