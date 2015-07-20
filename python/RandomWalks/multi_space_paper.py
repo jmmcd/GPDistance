@@ -24,6 +24,7 @@ from collections import OrderedDict
 import matplotlib.pyplot as plt
 import cPickle as pickle
 from sklearn.manifold import MDS, TSNE
+from sklearn.linear_model import LinearRegression
 
 import random_walks
 import plotting
@@ -296,8 +297,8 @@ def basic_stats_and_plots(space, do_rw_experiment=False):
         basic_stats_and_plots_tree()
         return
 
-    prop_unique_v_sd_cv_gini = []
     for size in sizes:
+        prop_unique_v_sd_cv_gini = []
         stddev = []
         coefvar = []
         gini = []
@@ -341,9 +342,8 @@ def basic_stats_and_plots(space, do_rw_experiment=False):
             scatterplot(basename, space, size, "SD", "Prop unique", stddev, prop_unique, ops)
             scatterplot(basename, space, size, "CV", "Prop unique", coefvar, prop_unique, ops)
 
-    if do_rw_experiment:
-        filename = os.path.join(basename, "space_%s/prop_unique_v_sd_cv_gini.dat" % space)
-        open(filename, "w").write("\n".join(prop_unique_v_sd_cv_gini))
+            filename = os.path.join(basename, "space_%s/size_%d_prop_unique_v_sd_cv_gini.dat" % (space, size))
+            open(filename, "w").write("\n".join(prop_unique_v_sd_cv_gini))
 
 def basic_stats_and_plots_tree():
     basename = sys.argv[1]
@@ -362,7 +362,7 @@ def basic_stats_and_plots_tree():
     
     prop_unique_v_sd_cv_gini.append("%s %d %s %f %f %f %f %f" % (
         space, size, op, sd, cv, g, mu, sigma))
-    filename = os.path.join(basename, "space_%s/prop_unique_v_sd_cv_gini.dat" % space)
+    filename = os.path.join(basename, "space_%s/size_%d_prop_unique_v_sd_cv_gini.dat" % (space, size))
     open(filename, "w").write("\n".join(prop_unique_v_sd_cv_gini))
                               
     
@@ -432,21 +432,38 @@ def plot_prop_unique_v_sd_cv_gini(spaces):
         ax = fig.add_subplot(111)
         for space, sym, colour in zip(spaces, ("s", "o", "^"),
                               ["blue", "green", "red"]):
-            x = np.genfromtxt(os.path.join(basedir,
-                                           "space_"+space,
-                                           "prop_unique_v_sd_cv_gini.dat"),
-                              delimiter=" ").T
-            plt.scatter(x[column], x[6], s=50, marker=sym, label=space, c=colour,
-                        alpha=0.7)
-        if name == "Gini":
-            loc = 3 # lower left
-        elif name == "CV":
-            loc = 4 # lower right
+            if space == "permutation":
+                sizes = (9, 10)
+            elif space == "bitstring":
+                sizes = (10, 12)
+            elif space == "tree":
+                sizes = (2,)
+            for size in sizes:
+                x = np.genfromtxt(os.path.join(basedir,
+                                               "space_"+space,
+                                               "size_%d_prop_unique_v_sd_cv_gini.dat"
+                                               % size),
+                                  delimiter=" ").T
+                plt.scatter(x[column], 1.0-x[6], s=50, marker=sym, label=space, c=colour,
+                            alpha=0.7)
+                if type(x[column]) != np.float64:
+                    lr = LinearRegression(fit_intercept=True)
+                    lr.fit(x[column].reshape((-1, 1)), 1.0-x[6])
+                    # slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(x[column], 1.0-x[6])
+                    slope = lr.coef_[0]
+                    intercept = 0.0
+                    fit_x = np.linspace(min(x[column]), max(x[column]))
+                    fit_y = slope * fit_x + intercept
+                    plt.plot(fit_x, fit_y, '--k')
+                                    
+                
+        if name == "CV":
+            loc = 1 # upper right
         else:
-            loc = 1
+            loc = 2 # upper left
         plt.legend(loc=loc)
         plt.xlabel(name)
-        plt.ylabel("Prop unique")
+        plt.ylabel("1 - prop. unique")
         filename = "%s/prop_unique_v_%s" % (basedir, name.lower())
         plt.savefig(filename+".pdf")
         plt.savefig(filename+".eps")
