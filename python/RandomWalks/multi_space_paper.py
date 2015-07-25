@@ -222,11 +222,11 @@ def write_tp_row0(space):
     basename = sys.argv[1]
     if space == "permutation":
         ops = ("two_opt", "twoh_opt", "three_opt", "three_opt_broad", "swap_two", "swap_adj")
-        sizes = (9, 10)
+        sizes = (9, 10, 11)
     elif space == "bitstring":
         ops = ("per_gene", "per_ind")
         pmuts = (0.0001, 0.0003, 0.0010, 0.0033, 0.01, 0.0333, 0.1, 0.3333)
-        sizes = (10, 12)
+        sizes = (10, 12, 14)
     for op in ops:
         for size in sizes:
             print op, size
@@ -256,8 +256,8 @@ def write_tp_row0(space):
 
 def basic_stats_and_plots(space, do_rw_experiment=False):
     """For several operators, read in their first rows and calculate the
-    basic stats (Gini, SD, CV) and nneighbours, and make the basic
-    plots of these.
+    basic stats (SD, CV, logN SD, sqrtN SD, cuberootN SD, Gini) and nneighbours, and
+    make the basic plots of these.
 
     """
 
@@ -273,7 +273,7 @@ def basic_stats_and_plots(space, do_rw_experiment=False):
             "swap_two": tsp.swap_two,
             "swap_adj": tsp.swap_adj
             }
-        sizes = range(9, 11)
+        sizes = (9, 10, 11)
         
     elif space == "bitstring":
         ops = ("per_gene_0.0001", "per_gene_0.0003",
@@ -292,15 +292,18 @@ def basic_stats_and_plots(space, do_rw_experiment=False):
             "per_gene_0.1000": bitstring.make_bitstring_per_gene_mutation(0.1000),
             "per_gene_0.3333": bitstring.make_bitstring_per_gene_mutation(0.3333),
             }
-        sizes = (10, 12)
+        sizes = (10, 12, 14)
     elif space == "tree" and do_rw_experiment:
         basic_stats_and_plots_tree()
         return
 
     for size in sizes:
-        prop_unique_v_sd_cv_gini = []
+        prop_unique_v_expl = []
         stddev = []
         coefvar = []
+        logN_sd_vals = []
+        sqrtN_sd_vals = []
+        cbrtN_sd_vals = []
         gini = []
         nneighbours = []
         prop_unique = []
@@ -310,19 +313,26 @@ def basic_stats_and_plots(space, do_rw_experiment=False):
                                     "TP_row0.dat")
             print op, size
             x = np.genfromtxt(filename)
+            N = len(x)
             # stats to get:
             sd = np.std(x)
             stddev.append(sd)
-            cv = np.std(x)/np.mean(x)
+            cv = np.std(x) * N
             coefvar.append(cv)
+            logN_sd = np.std(x) * np.log(N)
+            logN_sd_vals.append(logN_sd)
+            sqrtN_sd = np.std(x) * (N**0.5)
+            sqrtN_sd_vals.append(sqrtN_sd)
+            cbrtN_sd = np.std(x) * (N**(1.0/3))
+            cbrtN_sd_vals.append(cbrtN_sd)
             g = random_walks.gini_coeff(x)
             gini.append(g)
             nneighbours.append(np.sum(x > 0))
             if do_rw_experiment:
                 mu, sigma = rw_experiment_with_op(space, size, opfs[op])
                 prop_unique.append((mu, sigma))
-                prop_unique_v_sd_cv_gini.append("%s %d %s %f %f %f %f %f" % (
-                    space, size, op, sd, cv, g, mu, sigma))
+                prop_unique_v_expl.append("%s %d %s %f %f %f %f %f %f %f %f" % (
+                    space, size, op, sd, cv, logN_sd, sqrtN_sd, cbrtN_sd, g, mu, sigma))
 
         basename = sys.argv[1]
 
@@ -330,53 +340,68 @@ def basic_stats_and_plots(space, do_rw_experiment=False):
         barchart(basename, space, size, "Gini", gini, ops)
         barchart(basename, space, size, "SD", stddev, ops)
         barchart(basename, space, size, "CV", coefvar, ops)
+        barchart(basename, space, size, "log(N) SD", logN_sd_vals, ops)
+        barchart(basename, space, size, "sqrt(N) SD", sqrtN_sd_vals, ops)
+        barchart(basename, space, size, "cbrt(N) SD", cbrtN_sd_vals, ops)
 
         # scatterplots v nneighbours
         scatterplot(basename, space, size, "Gini", "# Neighbours", gini, nneighbours, ops)
         scatterplot(basename, space, size, "SD", "# Neighbours", stddev, nneighbours, ops)
         scatterplot(basename, space, size, "CV", "# Neighbours", coefvar, nneighbours, ops)
+        scatterplot(basename, space, size, "log(N) SD", "# Neighbours", logN_sd_vals, nneighbours, ops)
+        scatterplot(basename, space, size, "sqrt(N) SD", "# Neighbours", sqrtN_sd_vals, nneighbours, ops)
+        scatterplot(basename, space, size, "cbrt(N) SD", "# Neighbours", cbrtN_sd_vals, nneighbours, ops)
         
         if do_rw_experiment:
             # scatterplots v prop unique
-            scatterplot(basename, space, size, "Gini", "Prop unique", gini, prop_unique, ops)
-            scatterplot(basename, space, size, "SD", "Prop unique", stddev, prop_unique, ops)
-            scatterplot(basename, space, size, "CV", "Prop unique", coefvar, prop_unique, ops)
+            prop_unique = 1.0 - np.array(prop_unique)
+            scatterplot(basename, space, size, "Gini", "1 - prop. unique", gini, prop_unique, ops)
+            scatterplot(basename, space, size, "SD", "1 - prop. unique", stddev, prop_unique, ops)
+            scatterplot(basename, space, size, "CV", "1 - prop. unique", coefvar, prop_unique, ops)
+            scatterplot(basename, space, size, "log(N) SD", "1 - prop. unique", logN_sd_vals, prop_unique, ops)
+            scatterplot(basename, space, size, "sqrt(N) SD", "1 - prop. unique", sqrtN_sd_vals, prop_unique, ops)
+            scatterplot(basename, space, size, "cbrt(N) SD", "1 - prop. unique", cbrtN_sd_vals, prop_unique, ops)
 
-            filename = os.path.join(basename, "space_%s/size_%d_prop_unique_v_sd_cv_gini.dat" % (space, size))
-            open(filename, "w").write("\n".join(prop_unique_v_sd_cv_gini))
+            
+            filename = os.path.join(basename, "space_%s/size_%d_prop_unique_v_expl.dat" % (space, size))
+            open(filename, "w").write("\n".join(prop_unique_v_expl))
 
 def basic_stats_and_plots_tree():
     basename = sys.argv[1]
     filename = os.path.join(basename, "depth_2/TP.dat")
     tp = np.genfromtxt(filename)
+    N = len(tp)
 
     sd = random_walks.mu_sigma(tp)[0]
+    logN_sd = sd * np.log(len(tp))
+    sqrtN_sd = sd * (N**0.5)
+    cbrtN_sd = sd * (N**(1.0/3))
     g = random_walks.mean_gini_coeff(tp)
     cv = random_walks.mu_sigma_cv(tp)[0]
     mu, sigma = rw_experiment_with_tp(tp)
     
-    prop_unique_v_sd_cv_gini = []
+    prop_unique_v_expl = []
     space = "tree"
     op = "subtree"
     size = 2
     
-    prop_unique_v_sd_cv_gini.append("%s %d %s %f %f %f %f %f" % (
-        space, size, op, sd, cv, g, mu, sigma))
-    filename = os.path.join(basename, "space_%s/size_%d_prop_unique_v_sd_cv_gini.dat" % (space, size))
-    open(filename, "w").write("\n".join(prop_unique_v_sd_cv_gini))
+    prop_unique_v_expl.append("%s %d %s %f %f %f %f %f %f %f %f" % (
+        space, size, op, sd, cv, logN_sd, sqrtN_sd, cbrtN_sd, g, mu, sigma))
+    filename = os.path.join(basename, "space_%s/size_%d_prop_unique_v_expl.dat" % (space, size))
+    open(filename, "w").write("\n".join(prop_unique_v_expl))
                               
     
 
 def scatterplot(basename, space, size, xlabel, ylabel, xs, ys, names):
-    import inspect
-    print "XXX", [locals()[arg] for arg in inspect.getargspec(scatterplot).args]
+    # import inspect
+    # print "XXX", [locals()[arg] for arg in inspect.getargspec(scatterplot).args]
     
     names = map(lambda s: s.replace("_", " "), names)
     fig = plt.figure(figsize=(6, 4.5))
     ax = fig.add_subplot(111)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    if ylabel == "Prop unique":
+    if "unique" in ylabel:
         ys = np.array(ys)
         #plt.scatter(xs, ys[:,0], s=40)
         ax.errorbar(xs, ys[:,0], yerr=ys[:,1], fmt='o')
@@ -391,8 +416,8 @@ def scatterplot(basename, space, size, xlabel, ylabel, xs, ys, names):
             xy = (x, y), xytext = (-10, 0),
             textcoords = 'offset points', ha = 'right', va = 'center')
 
-    xlabel_s = xlabel.lower()
-    if "Prop unique" in ylabel:
+    xlabel_s = xlabel.lower().replace("(", "").replace(")", "")
+    if "unique" in ylabel:
         ylabel_s = "prop_unique"
     else:
         ylabel_s = "nneighbours"
@@ -404,7 +429,9 @@ def scatterplot(basename, space, size, xlabel, ylabel, xs, ys, names):
     del fig
 
 def barchart(basename, space, size, ylabel, y, names):
-    print "y", y
+    import inspect
+    print "XXX", [locals()[arg] for arg in inspect.getargspec(barchart).args]
+
     fig = plt.figure(figsize=(6, 4.5))
     ax = fig.add_subplot(111)
 
@@ -424,38 +451,47 @@ def barchart(basename, space, size, ylabel, y, names):
     del ax
     del fig
 
-def plot_prop_unique_v_sd_cv_gini(spaces):
-    plt.rcParams['legend.loc'] = 'best'
-    for name, column in zip(["SD", "CV", "Gini"], [3, 4, 5]):
+def plot_prop_unique_v_expl(spaces):
+
+    for name, column in zip(["SD", "CV", "log(N) SD", "sqrt(N) SD", "cbrt(N) SD", "Gini"], [3, 4, 5, 6, 7, 8]):
         basedir = sys.argv[1]
         fig = plt.figure(figsize=(6, 4.5))
         ax = fig.add_subplot(111)
         for space, sym, colour in zip(spaces, ("s", "o", "^"),
                               ["blue", "green", "red"]):
             if space == "permutation":
-                sizes = (9, 10)
+                sizes = (9, 10, 11)
             elif space == "bitstring":
-                sizes = (10, 12)
+                sizes = (10, 12, 14)
             elif space == "tree":
                 sizes = (2,)
+
+            labelled = set()
             for size in sizes:
                 x = np.genfromtxt(os.path.join(basedir,
                                                "space_"+space,
-                                               "size_%d_prop_unique_v_sd_cv_gini.dat"
+                                               "size_%d_prop_unique_v_expl.dat"
                                                % size),
                                   delimiter=" ").T
-                plt.scatter(x[column], 1.0-x[6], s=50, marker=sym, label=space, c=colour,
-                            alpha=0.7)
-                if type(x[column]) != np.float64:
+                if type(x[column]) != np.float64: # if we have more than one value to regress
                     lr = LinearRegression(fit_intercept=True)
-                    lr.fit(x[column].reshape((-1, 1)), 1.0-x[6])
+                    lr.fit(x[column].reshape((-1, 1)), 1.0-x[9])
                     # slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(x[column], 1.0-x[6])
                     slope = lr.coef_[0]
                     intercept = 0.0
                     fit_x = np.linspace(min(x[column]), max(x[column]))
                     fit_y = slope * fit_x + intercept
-                    plt.plot(fit_x, fit_y, '--k')
-                                    
+                    plt.plot(fit_x, fit_y, '--k', zorder=0)
+
+                if space in labelled:
+                    label = None
+                else:
+                    label = space
+                    labelled.add(space)
+
+                plt.scatter(x[column], 1.0-x[8], s=50, marker=sym, label=label, c=colour,
+                            alpha=0.7, zorder=1)
+                    
                 
         if name == "CV":
             loc = 1 # upper right
@@ -464,7 +500,8 @@ def plot_prop_unique_v_sd_cv_gini(spaces):
         plt.legend(loc=loc)
         plt.xlabel(name)
         plt.ylabel("1 - prop. unique")
-        filename = "%s/prop_unique_v_%s" % (basedir, name.lower())
+        plt.ylim((-0.1, 1.1))
+        filename = "%s/prop_unique_v_%s" % (basedir, name.lower().replace("(", "").replace(")", ""))
         plt.savefig(filename+".pdf")
         plt.savefig(filename+".eps")
         fig.clear()
@@ -481,9 +518,8 @@ if __name__ == "__main__":
     for space in spaces:
         # if space != "tree":
         #     write_tp_row0(space)
-        # basic_stats_and_plots(space, True)
+        basic_stats_and_plots(space, True)
         # if space == "permutation":
         #     operator_difference_and_compound_experiment()
-        pass
     
-    plot_prop_unique_v_sd_cv_gini(spaces)
+    plot_prop_unique_v_expl(spaces)
