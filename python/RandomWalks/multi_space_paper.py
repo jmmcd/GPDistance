@@ -179,7 +179,7 @@ def rw_experiment_with_tp(tp):
     return np.mean(results), np.std(results)
     
     
-def rw_experiment_with_op(space, n, op):
+def rw_experiment_with_op(basedir, space, n, op):
     """Proportion of unique individuals in a random walk: run many walks
      and calculate the proportion of unique individuals
      encountered. use a rw of length equal to sqrt of size of space.
@@ -187,9 +187,9 @@ def rw_experiment_with_op(space, n, op):
      more with exploitative ones
 
     """
+
     if space == "tree":
         raise NotImplementedError
-
     if space == "permutation":
         N = tsp.count_permutations(n)
     elif space == "bitstring":
@@ -208,9 +208,8 @@ def rw_experiment_with_op(space, n, op):
 
         x = float(len(set(samples))) / len(samples)
         results.append(x)
-    print "XXX", np.mean(results), np.std(results)
-    return np.mean(results), np.std(results)
-    
+    return results
+
 
 def write_tp_row0(space):
     """Write out just the first row of the transition matrix for several
@@ -329,7 +328,16 @@ def basic_stats_and_plots(space, do_rw_experiment=False):
             gini.append(g)
             nneighbours.append(np.sum(x > 0))
             if do_rw_experiment:
-                mu, sigma = rw_experiment_with_op(space, size, opfs[op])
+                try:
+                    # load the results from a previous rw run
+                    results = np.genfromtxt(basename + "/space_%s/rw_results_size_%d_op_%s.dat" % (space, size, op))
+                except:
+                    # but if there *was* no previous run, do it now and save
+                    results = rw_experiment_with_op(basename, space, size, opfs[op])
+                    np.savetxt(basename + "/space_%s/rw_results_size_%d_op_%s.dat" % (space, size, op), results)
+
+                mu, sigma = np.mean(results), np.std(results)
+    
                 prop_unique.append((mu, sigma))
                 prop_unique_v_expl.append("%s %d %s %f %f %f %f %f %f %f %f" % (
                     space, size, op, sd, cv, logN_sd, sqrtN_sd, cbrtN_sd, g, mu, sigma))
@@ -354,7 +362,8 @@ def basic_stats_and_plots(space, do_rw_experiment=False):
         
         if do_rw_experiment:
             # scatterplots v prop unique
-            prop_unique = 1.0 - np.array(prop_unique)
+            prop_unique = np.array(prop_unique)
+            prop_unique[:,0] = 1.0 - prop_unique[:,0]
             scatterplot(basename, space, size, "Gini", "1 - prop. unique", gini, prop_unique, ops)
             scatterplot(basename, space, size, "SD", "1 - prop. unique", stddev, prop_unique, ops)
             scatterplot(basename, space, size, "CV", "1 - prop. unique", coefvar, prop_unique, ops)
@@ -389,12 +398,13 @@ def basic_stats_and_plots_tree():
         space, size, op, sd, cv, logN_sd, sqrtN_sd, cbrtN_sd, g, mu, sigma))
     filename = os.path.join(basename, "space_%s/size_%d_prop_unique_v_expl.dat" % (space, size))
     open(filename, "w").write("\n".join(prop_unique_v_expl))
-                              
+    
+    barchart(basename, space, size, "cbrt(N) SD", [cbrtN_sd], [op])
     
 
 def scatterplot(basename, space, size, xlabel, ylabel, xs, ys, names):
-    # import inspect
-    # print "XXX", [locals()[arg] for arg in inspect.getargspec(scatterplot).args]
+    import inspect
+    #print "XXX", [locals()[arg] for arg in inspect.getargspec(scatterplot).args]
     
     names = map(lambda s: s.replace("_", " "), names)
     fig = plt.figure(figsize=(6, 4.5))
@@ -405,18 +415,21 @@ def scatterplot(basename, space, size, xlabel, ylabel, xs, ys, names):
         ys = np.array(ys)
         #plt.scatter(xs, ys[:,0], s=40)
         ax.errorbar(xs, ys[:,0], yerr=ys[:,1], fmt='o')
-        annotate_ys = ys[:,1]
+        # print "xs:", xs
+        # print "ys[:,0]:", ys[:,0]
+        # print "ys[:,1]:", ys[:,1]
+        annotate_ys = ys[:,0]
     else:
         plt.scatter(xs, ys, s=40)
         annotate_ys = ys
     # ax.set_xlim((0.999, 1.0002))
-    for label, x, y in zip(names, xs, annotate_ys):
-        plt.annotate(
-            label, 
-            xy = (x, y), xytext = (-10, 0),
-            textcoords = 'offset points', ha = 'right', va = 'center')
+    # for label, x, y in zip(names, xs, annotate_ys):
+    #     plt.annotate(
+    #         label, 
+    #         xy = (x, y), xytext = (-10, 0),
+    #         textcoords = 'offset points', ha = 'right', va = 'center')
 
-    xlabel_s = xlabel.lower().replace("(", "").replace(")", "")
+    xlabel_s = xlabel.lower().replace("(", "").replace(")", "").replace(" ", "_")
     if "unique" in ylabel:
         ylabel_s = "prop_unique"
     else:
@@ -429,8 +442,8 @@ def scatterplot(basename, space, size, xlabel, ylabel, xs, ys, names):
     del fig
 
 def barchart(basename, space, size, ylabel, y, names):
-    import inspect
-    print "XXX", [locals()[arg] for arg in inspect.getargspec(barchart).args]
+    # import inspect
+    # print "XXX", [locals()[arg] for arg in inspect.getargspec(barchart).args]
 
     fig = plt.figure(figsize=(6, 4.5))
     ax = fig.add_subplot(111)
@@ -442,7 +455,7 @@ def barchart(basename, space, size, ylabel, y, names):
     plt.ylim((math.floor(100 * min(y)) / 100.0, math.ceil(100 * max(y)) / 100.0))
     #plt.ylim((0.998, 1.0))
     plt.subplots_adjust(bottom=0.4)
-    ylabel_s = ylabel.lower()
+    ylabel_s = ylabel.lower().replace("(", "").replace(")", "").replace(" ", "_")
     filename = "%s/space_%s/size_%d_%s_barchart" % (basename, space, size, ylabel_s)
 
     plt.savefig(filename+".pdf")
@@ -468,17 +481,19 @@ def plot_prop_unique_v_expl(spaces):
 
             labelled = set()
             for size in sizes:
+                pcol = 9
                 x = np.genfromtxt(os.path.join(basedir,
                                                "space_"+space,
                                                "size_%d_prop_unique_v_expl.dat"
                                                % size),
                                   delimiter=" ").T
+                print x[pcol]
                 if type(x[column]) != np.float64: # if we have more than one value to regress
                     lr = LinearRegression(fit_intercept=True)
-                    lr.fit(x[column].reshape((-1, 1)), 1.0-x[9])
+                    lr.fit(x[column].reshape((-1, 1)), 1.0-x[pcol])
                     # slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(x[column], 1.0-x[6])
                     slope = lr.coef_[0]
-                    intercept = 0.0
+                    intercept = lr.intercept_
                     fit_x = np.linspace(min(x[column]), max(x[column]))
                     fit_y = slope * fit_x + intercept
                     plt.plot(fit_x, fit_y, '--k', zorder=0)
@@ -489,7 +504,7 @@ def plot_prop_unique_v_expl(spaces):
                     label = space
                     labelled.add(space)
 
-                plt.scatter(x[column], 1.0-x[8], s=50, marker=sym, label=label, c=colour,
+                plt.scatter(x[column], 1.0-x[pcol], s=50, marker=sym, label=label, c=colour,
                             alpha=0.7, zorder=1)
                     
                 
@@ -501,7 +516,11 @@ def plot_prop_unique_v_expl(spaces):
         plt.xlabel(name)
         plt.ylabel("1 - prop. unique")
         plt.ylim((-0.1, 1.1))
-        filename = "%s/prop_unique_v_%s" % (basedir, name.lower().replace("(", "").replace(")", ""))
+        vname = name.lower().replace("(", "").replace(")", "").replace(" ", "_")
+        print vname
+        filename = "%s/prop_unique_v_%s" % (basedir, vname)
+        print filename
+        print "saving!"
         plt.savefig(filename+".pdf")
         plt.savefig(filename+".eps")
         fig.clear()
