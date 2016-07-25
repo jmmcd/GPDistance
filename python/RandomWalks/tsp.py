@@ -105,7 +105,7 @@ def _three_opt_choose_edges_unused(n):
 
         a = random.randrange(n)
         c = random.randrange(a+2, a+n-1) % n
-        
+
         a, c = min(a, c), max(a, c) # now a < c, so a < n-2 and c > 2
 
         minv = 0
@@ -137,7 +137,7 @@ def _three_opt_choose_edges_iter(n):
                 max_e = n-1
             for e in range(c+2, max_e+1):
                 yield a, a+1, c, c+1, e, (e+1)%n
-                
+
 def _three_opt_choose_edges(n):
     """Choose 3 unique non-contiguous edges defined by their first node.
     This function chooses a random triple, uniformly sampled."""
@@ -149,7 +149,7 @@ def _three_opt_choose_edges(n):
         max_e = n-1
     e = random.randrange(c+2, max_e+1)
     return (a, a+1, c, c+1, e, (e+1)%n)
-    
+
 def _three_opt_iter(n):
     """Choose 3 unique non-contiguous edges defined by their first node.
     This iterator yields each possible triple in turn, but there will
@@ -159,7 +159,7 @@ def _three_opt_iter(n):
             a = _a
             c = _c % n
             a, c = min(a, c), max(a, c) # now a < c, so a < n-2 and c > 2
-            
+
             minv = 0
             maxv = n-1
             if a == 0:
@@ -177,7 +177,7 @@ def _three_opt_iter(n):
                 assert len(set([a, b, c, d, e, f])) == 6
 
                 yield sorted([a, b, c, d, e, f])
-            
+
 def three_opt_n_triples(n):
     return n * (n-4) * (n-5) / 6
 
@@ -197,9 +197,9 @@ def three_opt_deterministic(p, abcdef, which):
 
     """
     n = len(p)
-    
+
     a, b, c, d, e, f = abcdef
-    
+
     # in the following slices, the nodes abcdef are referred to by
     # name. x:y:-1 means step backwards. anything like c+1 or d-1
     # refers to c or d, but to include the item itself, we use the +1
@@ -229,10 +229,10 @@ def three_opt_deterministic(p, abcdef, which):
         sol = p[minv:a+1] + p[e:d-1:-1] + p[c:b-1:-1] + p[f:maxv+1] # 2-opt
 
     if len(sol) != n:
-        print "bad length:", sol
+        print("bad length:", sol)
         raise
     return canonicalise(sol)
-    
+
 def three_opt(p, broad=False):
     """In the broad sense, 3-opt means choosing any three non-contiguous
     edges ab, cd and ef and chopping them, and then reconnecting (such
@@ -244,11 +244,11 @@ def three_opt(p, broad=False):
     disallowed. There are 2 ways of choosing the second edge such that
     it's within 2 of the first edge, and thereafter there are n-5 ways
     for the third.
-    
+
     There are n-5 ways of choosing the second edge such that it's
     *not* within 2 of the first edge, and thereafter n-6 ways for the
     third.
-    
+
     Hence the total number of choices of ab cd ef is n*2*(n-5) +
     n*(n-5)*(n-6) = n(n-4)(n-5). But the order of a, c, e is
     unimportant, so we divide by 3! = 6, so the expression is
@@ -291,7 +291,7 @@ def three_opt(p, broad=False):
 
     if broad == True:
         # allow any of the 2-opt or 3-opt
-        which = random.choice([1, 2, 3, 4, 5, 6, 7]) 
+        which = random.choice([1, 2, 3, 4, 5, 6, 7])
     else:
         # allow only strict 3-opt
         which = random.choice([3, 4, 5, 6])
@@ -340,8 +340,8 @@ def get_tm_first_row(n, move="two_opt"):
         i = tours.index(neighb)
         tm[i] += 1.0 / n_neighbours
     return tm
-    
-    
+
+
 def get_neighbours(t, move):
     """Iterate through all possible neighbours using the given type of move."""
     n = len(t)
@@ -357,7 +357,7 @@ def get_neighbours(t, move):
             b = (a+1) % n
             # c can be any node other than a or b
             for c in range(a+2, a+n):
-                c = c % n 
+                c = c % n
                 yield twoh_opt(t, (a, b, c))
     elif move == "swap_two":
         for a in range(n):
@@ -425,7 +425,7 @@ def tsp_tm_wrapper(dirname, move="two_opt"):
     length = dirname[t:].split("_")[2]
     length = int(length)
     tm = get_tm(length, move)
-    print tm
+    print(tm)
     outfilename = dirname + "/TP.dat"
     np.savetxt(outfilename, tm)
     kt = kendall_tau_permutation_distances(length)
@@ -452,6 +452,6 @@ if __name__ == "__main__":
     # print c.most_common(100)
     # print len(c.most_common(100))
 
-    print len(list(tsp_tours(6)))
-    print len(list(tsp_tours(7)))
-    print len(list(tsp_tours(8)))
+    print(len(list(tsp_tours(6))))
+    print(len(list(tsp_tours(7))))
+    print(len(list(tsp_tours(8))))
