@@ -353,26 +353,6 @@ def exploitativeness_compare_matrix_to_uniform(x, method=scipy.stats.entropy, pa
     else:
         return np.mean([method(xi, y) for xi in x])
 
-def exploitativeness_compare_row_to_uniform(x, method=scipy.stats.entropy, param=None):
-    """Measure exploitativeness of an operator represented by one row x of
-    its matrix, by measuring distance from a uniform
-    distribution. There are at least 3 reasonable ways to do that --
-    Euclidean, Minkowski, KL-divergence."""
-    N = x.shape[0]
-    y = np.ones(N) / float(N)
-    if param:
-        return method(x, y, param)
-    else:
-        return method(x, y)
-
-def exploitativeness_RMSE(x):
-    """Measure exploitativeness as the mean RMSE between rows of x and
-    rows of the uniform distribution on same points.
-
-    x is the transition matrix of an operator."""
-    y = np.ones_like(x[0]) / float(x.shape[0])
-    return np.mean([RMSE(xi, y) for xi in x])
-
 def exploitativeness_KL(x):
     """Measure exploitativeness as the mean KL between rows of x and rows
     of the uniform distribution on same points."""
