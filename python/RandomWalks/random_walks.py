@@ -341,23 +341,20 @@ def get_steady_state(tp):
 def is_symmetric(x):
     return np.allclose(x, x.T)
 
-def exploitativeness_compare_matrix_to_uniform(x, method=scipy.stats.entropy, param=None):
-    """Measure exploitativeness of an operator represented by a matrix x,
-    by measuring distance from a uniform distribution. There are at
-    least 3 reasonable ways to do that -- Euclidean, Minkowski,
-    KL-divergence."""
-    N = x.shape[0]
-    y = np.ones(N) / float(N)
-    if param:
-        return np.mean([method(xi, y, param) for xi in x])
-    else:
-        return np.mean([method(xi, y) for xi in x])
-
 def exploitativeness_KL(x):
     """Measure exploitativeness as the mean KL between rows of x and rows
-    of the uniform distribution on same points."""
-    y = np.ones_like(x[0]) / float(x.shape[0])
-    return np.mean([scipy.stats.entropy(xi, y) for xi in x])
+    of the uniform distribution on same points. But if we know x is
+    symmetric, ie each row is just a permutation of the previous, then
+    pass in a single row and just calculate KL once."""
+    if len(x.shape) == 1:
+        # x is a row, so calculate KL(x, y) directly
+        y = np.ones_like(x) / float(x.shape[0])
+        return scipy.stats.entropy(x, y)
+    else:
+        # x is a matrix, so calculate mean of KL(xi, y) for each row
+        # xi
+        y = np.ones_like(x[0]) / float(x.shape[0])
+        return np.mean([scipy.stats.entropy(xi, y) for xi in x])
 
 def RMSE(x, y):
     return np.sqrt(np.mean((x - y)**2))
