@@ -611,6 +611,57 @@ def mu_sigma_GINI(t):
     GINI = np.array([gini_coeff(ti) for ti in t])
     return np.mean(GINI), np.std(GINI)
 
+def normalised_SD_expl(expl, N):
+    return expl / SD_deterministic_operator(N)
+
+def normalised_KL_expl(expl, N):
+    return expl / KL_deterministic_operator(N)
+
+def normalised_Gini_expl(expl, N):
+    return expl / Gini_deterministic_operator(N)
+
+def SD_deterministic_operator(N):
+    xbar = 1.0 / N
+    # The sum of squared errors. There is one entry 1, with error (1 -
+    # xbar), and N-1 entries 0, each with error (0 - xbar).
+    ssqe = 1 * ((1 - xbar)) ** 2 + (N - 1) * ((0 - xbar) ** 2)
+    return np.sqrt(ssqe / float(N))
+
+def KL_deterministic_operator(N):
+    # KL(p||q) where q is the uniform operator and p is the
+    # deterministic one, in a space of size N.
+    #
+    # KL(p||q) = \sum_x p(x) \log \frac{p(x)}{q(x)}.
+    #
+    # If p is the determinstic operator, then all elements p(x) are
+    # zero but one, so the sum becomes a single element, where p(x) =
+    # 1, q(x) = 1/N. The fraction p/q = 1/(1/N) = N. Some sources use
+    # log_2, but scipy.stats.entropy seems to use ln.
+    return math.log(N)
+
+def Gini_deterministic_operator(N):
+    return gini_m_equal_neighbours_fn(N, 1)
+
+def gini_m_equal_neighbours_fn(N, m):
+    """Gini coefficient for a distribution of N points where all elements
+    are 0, except for m elements with equal probability."""
+
+    # we normalise so that the width and height of the chart are 1
+    m /= float(N)
+    N /= float(N)
+
+    T = 1/2.0 # area under the 45-degree line of perfect equality
+
+    # B is the area below the Lorentz curve
+    # B is zero, up till the last *m* points, then it goes up linearly,
+    # so the area is a right triangle whose adjacent sides
+    # (the width and height) are m and N
+    B = m * N / 2.0
+
+    A = T - B # by definition
+    G = A / (A+B) # by definition
+    return G
+
 
 def detailed_balance(tp, s=None):
     """Calculate whether a given chain has the detailed balance
@@ -622,29 +673,6 @@ def detailed_balance(tp, s=None):
     # if it's symmetric
     f = tp * s.reshape((len(s), 1))
     return is_symmetric(f)
-
-def int_space_make_ops(N):
-    def uniform(x):
-        return random.randrange(N)
-    def ten_percent(x):
-        width = N / 10
-        choice = random.randrange(-width, width)
-        return (x + choice) % N
-    def deterministic(x):
-        return (x+1) % N
-    return uniform, ten_percent, deterministic
-
-def int_space_make_rows(N):
-    x_unif = np.ones(N) / float(N)
-
-    x_10pc = np.zeros(N)
-    width = N / 10
-    x_10pc[0:width] = 1.0 / width
-
-    x_det = np.zeros(N)
-    x_det[0] = 1.0
-
-    return x_unif, x_10pc, x_det
 
 if __name__ == "__main__":
     dirname = sys.argv[1]
